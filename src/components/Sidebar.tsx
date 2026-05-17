@@ -5,10 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
+import RecurringModal from "./RecurringModal";
 import SyncStatusBar from "./SyncStatus";
 import { useSync } from "@/hooks/useSync";
 
@@ -23,7 +24,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { selectedDate, setSelectedDate, currentStreak, longestStreak, dailyHistory } = useTaskStore();
   const { theme, toggleTheme, profile } = useUIStore();
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileOpen, setProfileOpen]     = useState(false);
+  const [recurringOpen, setRecurringOpen] = useState(false);
   const { status: syncStatus, push: syncNow } = useSync();
   const { exportData, importData } = useTaskStore();
   const importRef = useRef<HTMLInputElement>(null);
@@ -127,6 +129,15 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Recurring tasks button */}
+        <button
+          onClick={() => setRecurringOpen(true)}
+          className="group flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all text-ink-muted hover:bg-binding/40 hover:text-ink w-full"
+        >
+          <Repeat className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm font-semibold flex-1 text-left">Recurring</span>
+        </button>
       </nav>
 
       {/* ── Bottom section ── */}
@@ -219,6 +230,7 @@ export default function Sidebar() {
       </div>
 
       <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <RecurringModal open={recurringOpen} onClose={() => setRecurringOpen(false)} />
     </aside>
   );
 }

@@ -9,11 +9,17 @@ import TaskList from "@/components/TaskList";
 import AddTaskModal from "@/components/AddTaskModal";
 import CoverImage from "@/components/CoverImage";
 import DailyJournal from "@/components/DailyJournal";
+import RolloverBanner from "@/components/RolloverBanner";
 
 export default function Home() {
   const [showAdd, setShowAdd] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
-  const { tasks, selectedDate, dailyHistory } = useTaskStore();
+  const { tasks, selectedDate, dailyHistory, generateForDate } = useTaskStore();
+
+  // Auto-generate recurring task instances whenever the viewed date changes
+  useEffect(() => {
+    generateForDate(selectedDate);
+  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleEdit(task: Task) {
     setEditTask(task);
@@ -91,6 +97,9 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           {/* Notion-style cover image */}
           <CoverImage />
+          {/* Rollover banner */}
+          <RolloverBanner />
+
           {/* Column headers */}
           <div
             className="flex items-center border-b border-ruled/60"

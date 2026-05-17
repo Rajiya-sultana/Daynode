@@ -38,6 +38,20 @@ export interface Task {
   order: number;
   createdAt: string;
   completedAt: string | null;
+  recurringId?: string; // links to a RecurringTask template
+}
+
+export type RecurrenceType = "daily" | "weekdays" | "weekly" | "custom";
+
+export interface RecurringTask {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  recurrence: RecurrenceType;
+  days: number[]; // 0=Sun … 6=Sat; empty for daily/weekdays
+  active: boolean;
+  createdAt: string;
 }
 
 export interface Tag {
@@ -59,6 +73,7 @@ interface DailyHistory {
 interface TaskState {
   tasks: Task[];
   tags: Tag[];
+  recurringTasks: RecurringTask[];
   selectedDate: string;
   dailyHistory: DailyHistory;
   currentStreak: number;
@@ -88,6 +103,15 @@ interface TaskState {
 
   // Journal
   setJournal: (date: string, text: string) => void;
+
+  // Rollover
+  rolloverTasks: (fromDate: string, toDate: string) => number;
+
+  // Recurring
+  addRecurringTask: (rt: Omit<RecurringTask, "id" | "createdAt">) => void;
+  updateRecurringTask: (id: string, updates: Partial<RecurringTask>) => void;
+  deleteRecurringTask: (id: string) => void;
+  generateForDate: (date: string) => void;
 
   // Export / Import
   exportData: () => void;
@@ -143,7 +167,7 @@ function rebuildHistory(tasks: Task[], set: (s: Partial<TaskState>) => void) {
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
-      tasks: [], tags: DEFAULT_TAGS,
+      tasks: [], tags: DEFAULT_TAGS, recurringTasks: [],
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
       covers: {}, journals: {},
@@ -230,6 +254,82 @@ export const useTaskStore = create<TaskState>()(
         tags: get().tags.filter((t) => t.id !== id),
         tasks: get().tasks.map((t) => ({ ...t, tags: t.tags.filter((tid) => tid !== id) })),
       }),
+
+      // ── Recurring ────────────────────────────────────────────
+      addRecurringTask: (rt) => {
+        const task: RecurringTask = { ...rt, id: nanoid(), createdAt: new Date().toISOString() };
+        set((s) => ({ recurringTasks: [...s.recurringTasks, task] }));
+      },
+
+      updateRecurringTask: (id, updates) => {
+        set((s) => ({
+          recurringTasks: s.recurringTasks.map((rt) => rt.id === id ? { ...rt, ...updates } : rt),
+        }));
+      },
+
+      deleteRecurringTask: (id) => {
+        set((s) => ({
+          recurringTasks: s.recurringTasks.filter((rt) => rt.id !== id),
+          // detach any generated instances so they stay but aren't re-linked
+          tasks: s.tasks.map((t) => t.recurringId === id ? { ...t, recurringId: undefined } : t),
+        }));
+      },
+
+      generateForDate: (date) => {
+        const { tasks, recurringTasks } = get();
+        const dow = new Date(date + "T12:00:00").getDay(); // 0=Sun
+        const toCreate: Task[] = [];
+
+        for (const rt of recurringTasks) {
+          if (!rt.active) continue;
+          const applies =
+            rt.recurrence === "daily" ||
+            (rt.recurrence === "weekdays" && dow >= 1 && dow <= 5) ||
+            (rt.recurrence === "weekly"   && rt.days.includes(dow)) ||
+            (rt.recurrence === "custom"   && rt.days.includes(dow));
+          if (!applies) continue;
+          const exists = tasks.some((t) => t.recurringId === rt.id && t.date === date);
+          if (exists) continue;
+
+          toCreate.push({
+            id: nanoid(),
+            title: rt.title,
+            description: rt.description,
+            date,
+            deadline: "",
+            status: "pending",
+            tags: rt.tags,
+            subtasks: [],
+            order: tasks.filter((t) => t.date === date).length + toCreate.length,
+            createdAt: new Date().toISOString(),
+            completedAt: null,
+            recurringId: rt.id,
+          });
+        }
+
+        if (toCreate.length > 0) rebuildHistory([...tasks, ...toCreate], set);
+      },
+
+      // ── Rollover ─────────────────────────────────────────────
+      rolloverTasks: (fromDate, toDate) => {
+        const all = get().tasks;
+        const incomplete = all.filter(
+          (t) => t.date === fromDate && t.status !== "completed" && t.status !== "cancelled"
+        );
+        if (incomplete.length === 0) return 0;
+        const existing = all.filter((t) => t.date === toDate).length;
+        const rolled: Task[] = incomplete.map((t, i) => ({
+          ...t,
+          id: nanoid(),
+          date: toDate,
+          status: "pending" as const,
+          order: existing + i,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+        }));
+        rebuildHistory([...all, ...rolled], set);
+        return rolled.length;
+      },
 
       // ── Export / Import ──────────────────────────────────────
       exportData: () => {
