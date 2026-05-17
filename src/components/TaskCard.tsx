@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock } from "lucide-react";
+import { Trash2, Clock, Pencil } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useTaskStore, type Task, type Tag, STATUS_META } from "@/store/taskStore";
 import StatusPicker from "./StatusPicker";
@@ -20,9 +20,10 @@ function fireConfetti() {
 interface TaskCardProps {
   task: Task;
   lineNumber: number;
+  onEdit?: (task: Task) => void;
 }
 
-export default function TaskCard({ task, lineNumber }: TaskCardProps) {
+export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
   const { setStatus, deleteTask, tags } = useTaskStore();
   const [hovered, setHovered] = useState(false);
 
@@ -129,16 +130,30 @@ export default function TaskCard({ task, lineNumber }: TaskCardProps) {
 
           <AnimatePresence>
             {hovered && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.1 }}
-                onClick={() => deleteTask(task.id)}
-                className="p-1 rounded hover:bg-urgent-soft text-ink-faint hover:text-urgent transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </motion.button>
+              <>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={() => onEdit?.(task)}
+                  className="p-1 rounded hover:bg-accent-soft text-ink-faint hover:text-accent transition-colors"
+                  title="Edit task"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={() => deleteTask(task.id)}
+                  className="p-1 rounded hover:bg-urgent-soft text-ink-faint hover:text-urgent transition-colors"
+                  title="Delete task"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </motion.button>
+              </>
             )}
           </AnimatePresence>
         </div>

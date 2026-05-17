@@ -12,7 +12,11 @@ const GROUPS = [
   { key: "cancelled",   statuses: ["cancelled"] },
 ] as const;
 
-export default function TaskList() {
+interface TaskListProps {
+  onEdit?: (task: Task) => void;
+}
+
+export default function TaskList({ onEdit }: TaskListProps) {
   const { tasks, selectedDate } = useTaskStore();
   const dateTasks = tasks
     .filter((t: Task) => t.date === selectedDate)
@@ -82,7 +86,7 @@ export default function TaskList() {
 
             <AnimatePresence mode="popLayout">
               {group.map((task: Task) => (
-                <TaskCard key={task.id} task={task} lineNumber={lineCounter++} />
+                <TaskCard key={task.id} task={task} lineNumber={lineCounter++} onEdit={onEdit} />
               ))}
             </AnimatePresence>
           </div>

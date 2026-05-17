@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
-import { useTaskStore } from "@/store/taskStore";
+import { useTaskStore, type Task } from "@/store/taskStore";
 import Sidebar from "@/components/Sidebar";
 import TaskList from "@/components/TaskList";
 import AddTaskModal from "@/components/AddTaskModal";
@@ -12,7 +12,18 @@ import DailyJournal from "@/components/DailyJournal";
 
 export default function Home() {
   const [showAdd, setShowAdd] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
   const { tasks, selectedDate, dailyHistory } = useTaskStore();
+
+  function handleEdit(task: Task) {
+    setEditTask(task);
+    setShowAdd(true);
+  }
+
+  function handleModalClose() {
+    setShowAdd(false);
+    setEditTask(null);
+  }
 
   const dateTasks = tasks.filter((t) => t.date === selectedDate);
   const doneTasks = dateTasks.filter((t) => t.status === "completed");
@@ -25,7 +36,7 @@ export default function Home() {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "n" || e.key === "N") setShowAdd(true);
+      if (e.key === "n" || e.key === "N") { setEditTask(null); setShowAdd(true); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -67,7 +78,7 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() => setShowAdd(true)}
+            onClick={() => { setEditTask(null); setShowAdd(true); }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent-dim transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
@@ -106,11 +117,11 @@ export default function Home() {
           </div>
 
           {/* Actual task rows */}
-          <TaskList />
+          <TaskList onEdit={handleEdit} />
         </div>
       </main>
 
-      <AddTaskModal open={showAdd} onClose={() => setShowAdd(false)} />
+      <AddTaskModal open={showAdd} onClose={handleModalClose} task={editTask ?? undefined} />
     </div>
   );
 }

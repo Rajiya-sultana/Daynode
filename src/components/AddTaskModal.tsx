@@ -3,17 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Tag as TagIcon, CornerDownLeft, Loader2, AlertTriangle, CheckCheck } from "lucide-react";
-import { useTaskStore, type Tag } from "@/store/taskStore";
+import { useTaskStore, type Tag, type Task } from "@/store/taskStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import type { LTMatch } from "@/lib/languageTool";
 
 interface AddTaskModalProps {
   open: boolean;
   onClose: () => void;
+  task?: Task;
 }
 
-export default function AddTaskModal({ open, onClose }: AddTaskModalProps) {
-  const { addTask, tags, selectedDate } = useTaskStore();
+export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps) {
+  const { addTask, updateTask, tags, selectedDate } = useTaskStore();
+  const isEditing = !!task;
 
   const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
@@ -23,10 +25,19 @@ export default function AddTaskModal({ open, onClose }: AddTaskModalProps) {
 
   const { matches, checking, applyFix, applyAllFixes, ignoreWord } = useGrammarCheck(title);
 
-  // Auto-focus title when panel opens
+  // Populate fields when opening (edit) or reset when opening (add)
   useEffect(() => {
-    if (open) setTimeout(() => titleRef.current?.focus(), 80);
-  }, [open]);
+    if (!open) return;
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description);
+      setDeadline(task.deadline);
+      setSelectedTags(task.tags);
+    } else {
+      reset();
+    }
+    setTimeout(() => titleRef.current?.focus(), 80);
+  }, [open, task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close on Escape
   useEffect(() => {
@@ -38,13 +49,22 @@ export default function AddTaskModal({ open, onClose }: AddTaskModalProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    addTask({
-      title: title.trim(),
-      description: description.trim(),
-      date: selectedDate,
-      deadline,
-      tags: selectedTags,
-    });
+    if (isEditing && task) {
+      updateTask(task.id, {
+        title: title.trim(),
+        description: description.trim(),
+        deadline,
+        tags: selectedTags,
+      });
+    } else {
+      addTask({
+        title: title.trim(),
+        description: description.trim(),
+        date: selectedDate,
+        deadline,
+        tags: selectedTags,
+      });
+    }
     reset();
     onClose();
   }
@@ -95,9 +115,9 @@ export default function AddTaskModal({ open, onClose }: AddTaskModalProps) {
             <div className="flex items-center justify-between px-6 py-5 border-b border-binding/40">
               <div>
                 <p className="font-mono text-[10px] text-ink-faint uppercase tracking-widest mb-0.5">
-                  new entry
+                  {isEditing ? "edit entry" : "new entry"}
                 </p>
-                <h2 className="font-semibold text-ink text-base">Add Task</h2>
+                <h2 className="font-semibold text-ink text-base">{isEditing ? "Edit Task" : "Add Task"}</h2>
               </div>
               <button
                 onClick={onClose}
@@ -300,7 +320,7 @@ export default function AddTaskModal({ open, onClose }: AddTaskModalProps) {
                 className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <CornerDownLeft className="w-3.5 h-3.5" />
-                Add Task
+                {isEditing ? "Save Changes" : "Add Task"}
               </button>
             </div>
           </motion.div>
