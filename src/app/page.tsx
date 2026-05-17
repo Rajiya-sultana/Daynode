@@ -91,8 +91,6 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           {/* Notion-style cover image */}
           <CoverImage />
-          {/* Daily journal */}
-          <DailyJournal />
           {/* Column headers */}
           <div
             className="flex items-center border-b border-ruled/60"
@@ -118,6 +116,8 @@ export default function Home() {
 
           {/* Actual task rows */}
           <TaskList onEdit={handleEdit} />
+          {/* Daily journal */}
+          <DailyJournal />
         </div>
       </main>
 

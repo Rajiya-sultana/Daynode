@@ -49,6 +49,7 @@ export interface Tag {
 export interface Cover {
   type: "gradient" | "image";
   value: string;
+  positionY?: number; // 0–100, default 50 (center)
 }
 
 interface DailyHistory {

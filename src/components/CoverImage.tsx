@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, X, Shuffle } from "lucide-react";
+import { ImagePlus, X, Shuffle, Move, Check } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 
 const GRADIENTS = [
@@ -25,14 +25,17 @@ export default function CoverImage() {
   const cover = covers[selectedDate] ?? null;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [hovered, setHovered]       = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [adjusting, setAdjusting]   = useState(false);
+  const [positionY, setPositionY]   = useState(50);
+  const fileRef   = useRef<HTMLInputElement>(null);
+  const dragRef   = useRef<{ startY: number; startPos: number } | null>(null);
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setCover(selectedDate, { type: "image", value: ev.target?.result as string });
+      setCover(selectedDate, { type: "image", value: ev.target?.result as string, positionY: 50 });
       setPickerOpen(false);
     };
     reader.readAsDataURL(file);
@@ -49,6 +52,42 @@ export default function CoverImage() {
     setCover(selectedDate, { type: "gradient", value: g });
     setPickerOpen(false);
   }
+
+  function startAdjust() {
+    setPositionY(cover?.positionY ?? 50);
+    setAdjusting(true);
+    setHovered(false);
+  }
+
+  function saveAdjust() {
+    if (cover) setCover(selectedDate, { ...cover, positionY });
+    setAdjusting(false);
+  }
+
+  function cancelAdjust() {
+    setAdjusting(false);
+  }
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!adjusting) return;
+    e.preventDefault();
+    dragRef.current = { startY: e.clientY, startPos: positionY };
+
+    function onMove(ev: MouseEvent) {
+      if (!dragRef.current) return;
+      const delta = ev.clientY - dragRef.current.startY;
+      // dragging down → reveal top (positionY decreases)
+      const next = Math.max(0, Math.min(100, dragRef.current.startPos - delta * 0.35));
+      setPositionY(next);
+    }
+    function onUp() {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [adjusting, positionY]);
 
   if (!cover) {
     return (
@@ -72,23 +111,64 @@ export default function CoverImage() {
     );
   }
 
+  const displayY = adjusting ? positionY : (cover.positionY ?? 50);
   const bg = cover.type === "gradient"
     ? { background: cover.value }
-    : { backgroundImage: `url(${cover.value})`, backgroundSize: "cover", backgroundPosition: "center" };
+    : { backgroundImage: `url(${cover.value})`, backgroundSize: "cover", backgroundPosition: `center ${displayY}%` };
 
   return (
     <div
-      className="relative w-full overflow-hidden"
-      style={{ height: "180px", ...bg }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="relative w-full overflow-hidden select-none"
+      style={{ height: "180px", ...bg, cursor: adjusting ? "ns-resize" : "default" }}
+      onMouseEnter={() => !adjusting && setHovered(true)}
+      onMouseLeave={() => !adjusting && setHovered(false)}
+      onMouseDown={onMouseDown}
     >
-      {/* Overlay for readability */}
+      {/* Overlay */}
       <div className="absolute inset-0 bg-ink/10" />
 
-      {/* Controls on hover */}
+      {/* Adjust mode UI */}
       <AnimatePresence>
-        {hovered && (
+        {adjusting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 flex flex-col items-center justify-between py-3 pointer-events-none"
+          >
+            {/* Hint */}
+            <div className="flex items-center gap-1.5 font-mono text-[10px] font-semibold text-white bg-ink/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <Move className="w-3 h-3" />
+              Drag to reposition
+            </div>
+
+            {/* Save / Cancel — these need pointer events */}
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={cancelAdjust}
+                className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Cancel
+              </button>
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={saveAdjust}
+                className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-accent text-white backdrop-blur-sm hover:bg-accent-dim transition-colors"
+              >
+                <Check className="w-3 h-3" />
+                Save position
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Normal hover controls */}
+      <AnimatePresence>
+        {hovered && !adjusting && (
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -96,6 +176,16 @@ export default function CoverImage() {
             transition={{ duration: 0.15 }}
             className="absolute bottom-3 right-4 flex items-center gap-2"
           >
+            {/* Adjust button — only for image covers */}
+            {cover.type === "image" && (
+              <button
+                onClick={startAdjust}
+                className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors"
+              >
+                <Move className="w-3 h-3" />
+                Adjust
+              </button>
+            )}
             <button
               onClick={() => setPickerOpen(true)}
               className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors"
