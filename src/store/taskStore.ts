@@ -38,7 +38,10 @@ export interface Task {
   order: number;
   createdAt: string;
   completedAt: string | null;
-  recurringId?: string; // links to a RecurringTask template
+  recurringId?: string;
+  estimatedMinutes?: number;
+  startedAt?: string;
+  actualMinutes?: number;
 }
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "custom";
@@ -199,9 +202,15 @@ export const useTaskStore = create<TaskState>()(
       },
 
       setStatus: (id, status) => {
-        rebuildHistory(get().tasks.map((t) => t.id !== id ? t : {
-          ...t, status,
-          completedAt: status === "completed" ? new Date().toISOString() : t.completedAt,
+        const now = new Date().toISOString();
+        rebuildHistory(get().tasks.map((t) => {
+          if (t.id !== id) return t;
+          const startedAt = status === "in-progress" && !t.startedAt ? now : t.startedAt;
+          const completedAt = status === "completed" ? now : t.completedAt;
+          const actualMinutes = status === "completed" && startedAt
+            ? Math.round((new Date(now).getTime() - new Date(startedAt).getTime()) / 60000)
+            : t.actualMinutes;
+          return { ...t, status, completedAt, startedAt, actualMinutes };
         }), set);
       },
 

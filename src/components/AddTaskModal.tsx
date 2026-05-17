@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Tag as TagIcon, CornerDownLeft, Loader2, AlertTriangle, CheckCheck } from "lucide-react";
+import { X, Tag as TagIcon, CornerDownLeft, Loader2, AlertTriangle, CheckCheck, Timer } from "lucide-react";
 import { useTaskStore, type Tag, type Task } from "@/store/taskStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import type { LTMatch } from "@/lib/languageTool";
@@ -17,10 +17,11 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
   const { addTask, updateTask, tags, selectedDate } = useTaskStore();
   const isEditing = !!task;
 
-  const [title, setTitle]             = useState("");
-  const [description, setDescription] = useState("");
-  const [deadline, setDeadline]       = useState("");
+  const [title, setTitle]               = useState("");
+  const [description, setDescription]   = useState("");
+  const [deadline, setDeadline]         = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [estimatedMinutes, setEstimatedMinutes] = useState<number | "">("");
   const titleRef = useRef<HTMLInputElement>(null);
 
   const { matches, checking, applyFix, applyAllFixes, ignoreWord } = useGrammarCheck(title);
@@ -33,6 +34,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
       setDescription(task.description);
       setDeadline(task.deadline);
       setSelectedTags(task.tags);
+      setEstimatedMinutes(task.estimatedMinutes ?? "");
     } else {
       reset();
     }
@@ -49,12 +51,14 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
+    const estMins = estimatedMinutes === "" ? undefined : Number(estimatedMinutes);
     if (isEditing && task) {
       updateTask(task.id, {
         title: title.trim(),
         description: description.trim(),
         deadline,
         tags: selectedTags,
+        estimatedMinutes: estMins,
       });
     } else {
       addTask({
@@ -63,6 +67,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
         date: selectedDate,
         deadline,
         tags: selectedTags,
+        estimatedMinutes: estMins,
       });
     }
     reset();
@@ -70,7 +75,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
   }
 
   function reset() {
-    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]);
+    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]); setEstimatedMinutes("");
   }
 
   function toggleTag(id: string) {
@@ -272,6 +277,38 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
                   onChange={(e) => setDeadline(e.target.value)}
                   className="w-full bg-transparent border-0 border-b border-ruled focus:border-accent outline-none font-mono text-sm text-ink py-2 transition-colors"
                 />
+              </div>
+
+              {/* ── Estimate ── */}
+              <div>
+                <label className="font-mono text-[10px] text-ink-faint uppercase tracking-widest block mb-2 flex items-center gap-1.5">
+                  <Timer className="w-3 h-3" />
+                  estimate
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[15, 30, 60, 120].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setEstimatedMinutes(estimatedMinutes === m ? "" : m)}
+                      className={`font-mono text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
+                        estimatedMinutes === m
+                          ? "bg-accent text-white border-accent"
+                          : "border-ruled text-ink-muted hover:border-accent hover:text-accent"
+                      }`}
+                    >
+                      {m < 60 ? `${m}m` : `${m / 60}h`}
+                    </button>
+                  ))}
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="custom min"
+                    value={typeof estimatedMinutes === "number" && ![15,30,60,120].includes(estimatedMinutes) ? estimatedMinutes : ""}
+                    onChange={(e) => setEstimatedMinutes(e.target.value ? Number(e.target.value) : "")}
+                    className="w-24 bg-transparent border-b border-ruled focus:border-accent outline-none font-mono text-xs text-ink placeholder:text-ink-faint py-1 transition-colors"
+                  />
+                </div>
               </div>
 
               {/* ── Tags ── */}

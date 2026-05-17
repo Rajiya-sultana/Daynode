@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Pencil } from "lucide-react";
+import { Trash2, Clock, Pencil, Timer } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useTaskStore, type Task, type Tag, STATUS_META } from "@/store/taskStore";
 import StatusPicker from "./StatusPicker";
@@ -34,6 +34,12 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
   const deadlineDate = task.deadline ? parseISO(task.deadline) : null;
   const isOverdue    = deadlineDate && !isCompleted && !isCancelled && isPast(deadlineDate) && !isToday(deadlineDate);
   const meta         = STATUS_META[task.status];
+
+  function fmtMin(m: number) {
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60), rem = m % 60;
+    return rem ? `${h}h ${rem}m` : `${h}h`;
+  }
 
   function handleStatusChange(s: typeof task.status) {
     if (s === "completed" && task.status !== "completed") fireConfetti();
@@ -99,8 +105,8 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
             <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">{task.description}</p>
           )}
 
-          {/* Tags + deadline */}
-          {(taskTags.length > 0 || deadlineDate) && (
+          {/* Tags + deadline + time estimate */}
+          {(taskTags.length > 0 || deadlineDate || task.estimatedMinutes) && (
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {taskTags.map((tag: Tag) => (
                 <span key={tag.id}
@@ -117,6 +123,22 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
                   {isOverdue && " · overdue"}
                 </span>
               )}
+              {/* Time: show actual vs estimated when done, estimate only otherwise */}
+              {isCompleted && task.actualMinutes ? (
+                <span className={`flex items-center gap-1 font-mono text-[10px] font-medium ${
+                  task.estimatedMinutes && task.actualMinutes > task.estimatedMinutes
+                    ? "text-urgent" : "text-done"
+                }`}>
+                  <Timer className="w-2.5 h-2.5" />
+                  {fmtMin(task.actualMinutes)} actual
+                  {task.estimatedMinutes && ` · ${fmtMin(task.estimatedMinutes)} est`}
+                </span>
+              ) : task.estimatedMinutes && !isCompleted ? (
+                <span className="flex items-center gap-1 font-mono text-[10px] font-medium text-ink-faint">
+                  <Timer className="w-2.5 h-2.5" />
+                  ~{fmtMin(task.estimatedMinutes)}
+                </span>
+              ) : null}
             </div>
           )}
 
