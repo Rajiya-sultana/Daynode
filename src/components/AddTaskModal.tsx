@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Tag as TagIcon, CornerDownLeft, Loader2, AlertTriangle, CheckCheck, Timer } from "lucide-react";
+import { X, Tag as TagIcon, CornerDownLeft, Loader2, AlertTriangle, CheckCheck, Timer, Sparkles } from "lucide-react";
 import { useTaskStore, type Tag, type Task } from "@/store/taskStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
+import { parseNL } from "@/lib/nlParser";
 import type { LTMatch } from "@/lib/languageTool";
 
 interface AddTaskModalProps {
@@ -22,9 +23,30 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
   const [deadline, setDeadline]         = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | "">("");
+  const [priority, setPriority] = useState<"urgent" | "high" | undefined>(undefined);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const { matches, checking, applyFix, applyAllFixes, ignoreWord } = useGrammarCheck(title);
+
+  // NL parse on the title — only when not editing (don't mess with existing data)
+  const nlParsed = useMemo(
+    () => (!isEditing && title.length > 3 ? parseNL(title, tags.map((t: Tag) => t.name)) : null),
+    [title, isEditing, tags],
+  );
+  const hasNL = !!nlParsed && nlParsed.tokens.length > 0;
+
+  function applyNL() {
+    if (!nlParsed) return;
+    if (nlParsed.title)    setTitle(nlParsed.title);
+    if (nlParsed.date)     setDeadline(nlParsed.date);
+    if (nlParsed.priority) setPriority(nlParsed.priority);
+    if (nlParsed.matchedTagNames.length > 0) {
+      const ids = nlParsed.matchedTagNames
+        .map((n) => tags.find((t: Tag) => t.name.toLowerCase() === n.toLowerCase())?.id)
+        .filter(Boolean) as string[];
+      setSelectedTags((prev) => [...new Set([...prev, ...ids])]);
+    }
+  }
 
   // Populate fields when opening (edit) or reset when opening (add)
   useEffect(() => {
@@ -35,6 +57,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
       setDeadline(task.deadline);
       setSelectedTags(task.tags);
       setEstimatedMinutes(task.estimatedMinutes ?? "");
+      setPriority(task.priority);
     } else {
       reset();
     }
@@ -59,6 +82,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
         deadline,
         tags: selectedTags,
         estimatedMinutes: estMins,
+        priority,
       });
     } else {
       addTask({
@@ -68,6 +92,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
         deadline,
         tags: selectedTags,
         estimatedMinutes: estMins,
+        priority,
       });
     }
     reset();
@@ -75,7 +100,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
   }
 
   function reset() {
-    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]); setEstimatedMinutes("");
+    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]); setEstimatedMinutes(""); setPriority(undefined);
   }
 
   function toggleTag(id: string) {
@@ -250,6 +275,36 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* ── NL detection chips ── */}
+                <AnimatePresence>
+                  {hasNL && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="mt-2.5 flex items-center gap-2 flex-wrap"
+                    >
+                      <Sparkles className="w-3 h-3 text-accent flex-shrink-0" />
+                      {nlParsed!.tokens.map((tok) => (
+                        <span
+                          key={tok}
+                          className="font-mono text-[9px] font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20"
+                        >
+                          {tok}
+                        </span>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={applyNL}
+                        className="ml-auto font-mono text-[9px] font-semibold px-2.5 py-1 rounded-lg bg-accent text-white hover:bg-accent-dim transition-colors flex-shrink-0"
+                      >
+                        Apply
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* ── Description ── */}
@@ -308,6 +363,34 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
                     onChange={(e) => setEstimatedMinutes(e.target.value ? Number(e.target.value) : "")}
                     className="w-24 bg-transparent border-b border-ruled focus:border-accent outline-none font-mono text-xs text-ink placeholder:text-ink-faint py-1 transition-colors"
                   />
+                </div>
+              </div>
+
+              {/* ── Priority ── */}
+              <div>
+                <label className="font-mono text-[10px] text-ink-faint uppercase tracking-widest block mb-2">
+                  priority
+                </label>
+                <div className="flex items-center gap-2">
+                  {([
+                    { value: undefined,  label: "Normal", color: "var(--color-ink-muted)", bg: "transparent", border: "var(--color-ruled)" },
+                    { value: "high",     label: "▲ High",   color: "#F0A057", bg: "#FEF3EA", border: "#F0A057" },
+                    { value: "urgent",   label: "⚡ Urgent", color: "#E88C8C", bg: "#FDEAEA", border: "#E88C8C" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => setPriority(opt.value)}
+                      className="font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg border-2 transition-all"
+                      style={{
+                        color: priority === opt.value ? opt.color : "var(--color-ink-muted)",
+                        backgroundColor: priority === opt.value ? opt.bg : "transparent",
+                        borderColor: priority === opt.value ? opt.border : "var(--color-ruled)",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 

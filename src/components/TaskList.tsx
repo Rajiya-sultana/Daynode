@@ -18,9 +18,18 @@ interface TaskListProps {
 
 export default function TaskList({ onEdit }: TaskListProps) {
   const { tasks, selectedDate } = useTaskStore();
+
+  const PRIORITY_WEIGHT = { urgent: 0, high: 1, undefined: 2 } as const;
+  function priorityWeight(t: Task) {
+    return PRIORITY_WEIGHT[t.priority as keyof typeof PRIORITY_WEIGHT ?? "undefined"] ?? 2;
+  }
+
   const dateTasks = tasks
     .filter((t: Task) => t.date === selectedDate)
-    .sort((a: Task, b: Task) => a.order - b.order);
+    .sort((a: Task, b: Task) => {
+      const pw = priorityWeight(a) - priorityWeight(b);
+      return pw !== 0 ? pw : a.order - b.order;
+    });
 
   if (dateTasks.length === 0) return <EmptyState />;
 

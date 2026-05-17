@@ -42,6 +42,7 @@ export interface Task {
   estimatedMinutes?: number;
   startedAt?: string;
   actualMinutes?: number;
+  priority?: "urgent" | "high";
 }
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "custom";

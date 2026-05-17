@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Pencil, Timer } from "lucide-react";
+import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useTaskStore, type Task, type Tag, STATUS_META } from "@/store/taskStore";
 import StatusPicker from "./StatusPicker";
@@ -24,8 +24,23 @@ interface TaskCardProps {
 }
 
 export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
-  const { setStatus, deleteTask, tags } = useTaskStore();
+  const { setStatus, deleteTask, updateTask, tags } = useTaskStore();
   const [hovered, setHovered] = useState(false);
+
+  const PRIORITY_CYCLE: Array<Task["priority"]> = [undefined, "urgent", "high"];
+  function cyclePriority() {
+    const idx  = PRIORITY_CYCLE.indexOf(task.priority);
+    const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length];
+    updateTask(task.id, { priority: next });
+  }
+
+  const priorityIcon =
+    task.priority === "urgent" ? <Zap  className="w-3 h-3" /> :
+    task.priority === "high"   ? <TrendingUp className="w-3 h-3" /> : null;
+
+  const priorityColor =
+    task.priority === "urgent" ? "#E88C8C" :
+    task.priority === "high"   ? "#F0A057" : undefined;
 
   const isCompleted  = task.status === "completed";
   const isCancelled  = task.status === "cancelled";
@@ -55,7 +70,12 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="group relative flex items-start gap-0 transition-colors"
-      style={{ minHeight: "40px" }}
+      style={{
+        minHeight: "40px",
+        ...(priorityColor && !isCompleted && !isCancelled
+          ? { boxShadow: `inset 3px 0 0 ${priorityColor}` }
+          : {}),
+      }}
     >
       {/* Line number */}
       <div className="w-10 flex-shrink-0 flex items-center justify-end pr-3 self-stretch">
@@ -96,11 +116,24 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
 
         {/* Title + meta */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold leading-snug ${
-            isCompleted || isCancelled ? "line-through text-ink-faint" : isBlocked ? "text-urgent" : "text-ink"
-          }`}>
-            {task.title}
-          </p>
+          <div className="flex items-center gap-1.5">
+            {/* Priority icon — always visible when set */}
+            {priorityIcon && (
+              <button
+                onClick={cyclePriority}
+                className="flex-shrink-0 transition-transform hover:scale-110"
+                style={{ color: priorityColor }}
+                title={`Priority: ${task.priority} — click to change`}
+              >
+                {priorityIcon}
+              </button>
+            )}
+            <p className={`text-sm font-semibold leading-snug ${
+              isCompleted || isCancelled ? "line-through text-ink-faint" : isBlocked ? "text-urgent" : "text-ink"
+            }`}>
+              {task.title}
+            </p>
+          </div>
           {task.description && (
             <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">{task.description}</p>
           )}
@@ -153,6 +186,21 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
           <AnimatePresence>
             {hovered && (
               <>
+                {/* Priority cycle button */}
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={cyclePriority}
+                  className="p-1 rounded transition-colors"
+                  style={priorityColor
+                    ? { color: priorityColor }
+                    : { color: "var(--color-ink-faint)" }}
+                  title={task.priority ? `Priority: ${task.priority} — click to change` : "Set priority"}
+                >
+                  {priorityIcon ?? <Zap className="w-3.5 h-3.5" />}
+                </motion.button>
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import QuickCapture from "./QuickCapture";
 import KeyboardShortcuts from "./KeyboardShortcuts";
+import EndOfDayPrompt from "./EndOfDayPrompt";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [quickOpen,     setQuickOpen]     = useState(false);
@@ -39,8 +40,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      <QuickCapture    open={quickOpen}     onClose={() => setQuickOpen(false)} />
+      <QuickCapture      open={quickOpen}     onClose={() => setQuickOpen(false)} />
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <EndOfDayPrompt />
     </>
   );
 }
