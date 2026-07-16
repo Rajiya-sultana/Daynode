@@ -17,6 +17,13 @@ export default function EndOfDayPrompt() {
   const [reflection, setReflection] = useState("");
   const [saved, setSaved]     = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Refs to keep interval callback from going stale without recreating it
+  const tasksRef        = useRef(tasks);
+  const journalsRef     = useRef(journals);
+  const dismissedRef    = useRef(dismissed);
+  useEffect(() => { tasksRef.current = tasks; },     [tasks]);
+  useEffect(() => { journalsRef.current = journals; }, [journals]);
+  useEffect(() => { dismissedRef.current = dismissed; }, [dismissed]);
 
   const today    = format(new Date(), "yyyy-MM-dd");
   const reviewKey = `review-${today}`;
@@ -26,16 +33,16 @@ export default function EndOfDayPrompt() {
     function check() {
       const hour = new Date().getHours();
       const hasReviewedToday = lastReviewDate === today;
-      const todayTasks = tasks.filter((t) => t.date === today);
-      if (hour >= REVIEW_HOUR && !hasReviewedToday && !dismissed && todayTasks.length > 0) {
-        setReflection(journals[reviewKey] ?? "");
+      const todayTasks = tasksRef.current.filter((t) => t.date === today);
+      if (hour >= REVIEW_HOUR && !hasReviewedToday && !dismissedRef.current && todayTasks.length > 0) {
+        setReflection(journalsRef.current[reviewKey] ?? "");
         setOpen(true);
       }
     }
     check();
-    const id = setInterval(check, 60_000); // re-check every minute
+    const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [lastReviewDate, dismissed, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lastReviewDate, today, reviewKey]);
 
   // Auto-save reflection
   useEffect(() => {

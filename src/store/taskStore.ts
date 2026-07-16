@@ -7,12 +7,12 @@ export type TaskStatus =
   | "pending" | "seen" | "in-progress" | "blocked" | "completed" | "cancelled";
 
 export const STATUS_META: Record<TaskStatus, { label: string; color: string; bg: string; icon: string }> = {
-  pending:      { label: "Pending",     color: "#8A8070", bg: "#F4EFE6", icon: "○" },
-  seen:         { label: "Seen",        color: "#5B8DEF", bg: "#EEF3FD", icon: "◉" },
-  "in-progress":{ label: "In Progress", color: "#F0A057", bg: "#FEF3EA", icon: "◑" },
-  blocked:      { label: "Blocked",     color: "#E88C8C", bg: "#FDEAEA", icon: "⊗" },
-  completed:    { label: "Completed",   color: "#5BAD8A", bg: "#E6F5EF", icon: "✓" },
-  cancelled:    { label: "Cancelled",   color: "#B8AFA2", bg: "#F4EFE6", icon: "—" },
+  pending: { label: "Pending", color: "#8A8070", bg: "#F4EFE6", icon: "○" },
+  seen: { label: "Seen", color: "#5B8DEF", bg: "#EEF3FD", icon: "◉" },
+  "in-progress": { label: "In Progress", color: "#F0A057", bg: "#FEF3EA", icon: "◑" },
+  blocked: { label: "Blocked", color: "#E88C8C", bg: "#FDEAEA", icon: "⊗" },
+  completed: { label: "Completed", color: "#5BAD8A", bg: "#E6F5EF", icon: "✓" },
+  cancelled: { label: "Cancelled", color: "#B8AFA2", bg: "#F4EFE6", icon: "—" },
 };
 
 export const STATUS_ORDER: TaskStatus[] = [
@@ -125,15 +125,15 @@ interface TaskState {
 }
 
 const DEFAULT_TAGS: Tag[] = [
-  { id: "tag-work",     name: "Work",     color: "#5B8DEF" },
+  { id: "tag-work", name: "Work", color: "#5B8DEF" },
   { id: "tag-personal", name: "Personal", color: "#8B6DAF" },
-  { id: "tag-urgent",   name: "Urgent",   color: "#E88C8C" },
-  { id: "tag-health",   name: "Health",   color: "#5BAD8A" },
+  { id: "tag-urgent", name: "Urgent", color: "#E88C8C" },
+  { id: "tag-health", name: "Health", color: "#5BAD8A" },
 ];
 
 function computeStreaks(history: DailyHistory) {
-  const dates    = Object.keys(history).sort().reverse();
-  const today    = format(new Date(), "yyyy-MM-dd");
+  const dates = Object.keys(history).sort().reverse();
+  const today = format(new Date(), "yyyy-MM-dd");
   const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
   let current = 0, longest = 0, streak = 0;
 
@@ -218,7 +218,7 @@ export const useTaskStore = create<TaskState>()(
       deleteTask: (id) => rebuildHistory(get().tasks.filter((t) => t.id !== id), set),
 
       reorderTasks: (date, taskIds) => {
-        const others   = get().tasks.filter((t) => t.date !== date);
+        const others = get().tasks.filter((t) => t.date !== date);
         const dateTasks = get().tasks.filter((t) => t.date === date);
         const reordered = taskIds
           .map((id, i) => { const t = dateTasks.find((t) => t.id === id); return t ? { ...t, order: i } : null; })
@@ -295,8 +295,8 @@ export const useTaskStore = create<TaskState>()(
           const applies =
             rt.recurrence === "daily" ||
             (rt.recurrence === "weekdays" && dow >= 1 && dow <= 5) ||
-            (rt.recurrence === "weekly"   && rt.days.includes(dow)) ||
-            (rt.recurrence === "custom"   && rt.days.includes(dow));
+            (rt.recurrence === "weekly" && rt.days.includes(dow)) ||
+            (rt.recurrence === "custom" && rt.days.includes(dow));
           if (!applies) continue;
           const exists = tasks.some((t) => t.recurringId === rt.id && t.date === date);
           if (exists) continue;
@@ -327,7 +327,10 @@ export const useTaskStore = create<TaskState>()(
           (t) => t.date === fromDate && t.status !== "completed" && t.status !== "cancelled"
         );
         if (incomplete.length === 0) return 0;
-        const existing = all.filter((t) => t.date === toDate).length;
+        const incompleteIds = new Set(incomplete.map((t) => t.id));
+        // Move tasks (remove originals so they don't re-trigger the banner)
+        const remaining = all.filter((t) => !incompleteIds.has(t.id));
+        const existing = remaining.filter((t) => t.date === toDate).length;
         const rolled: Task[] = incomplete.map((t, i) => ({
           ...t,
           id: nanoid(),
@@ -336,8 +339,10 @@ export const useTaskStore = create<TaskState>()(
           order: existing + i,
           createdAt: new Date().toISOString(),
           completedAt: null,
+          startedAt: undefined,
+          actualMinutes: undefined,
         }));
-        rebuildHistory([...all, ...rolled], set);
+        rebuildHistory([...remaining, ...rolled], set);
         return rolled.length;
       },
 
@@ -349,9 +354,9 @@ export const useTaskStore = create<TaskState>()(
           null, 2
         );
         const blob = new Blob([payload], { type: "application/json" });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement("a");
-        a.href     = url;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
         a.download = `daynode-backup-${format(new Date(), "yyyy-MM-dd")}.json`;
         a.click();
         URL.revokeObjectURL(url);
@@ -364,7 +369,7 @@ export const useTaskStore = create<TaskState>()(
           const history = updateDailyHistory(data.tasks);
           set({
             tasks: data.tasks,
-            tags:  data.tags  ?? DEFAULT_TAGS,
+            tags: data.tags ?? DEFAULT_TAGS,
             covers: data.covers ?? {},
             journals: data.journals ?? {},
             dailyHistory: history,

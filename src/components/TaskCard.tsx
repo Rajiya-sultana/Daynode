@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp } from "lucide-react";
+import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp, Check, Target } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useTaskStore, type Task, type Tag, STATUS_META } from "@/store/taskStore";
+import { useUIStore } from "@/store/uiStore";
 import StatusPicker from "./StatusPicker";
 import SubtaskList from "./SubtaskList";
 import confetti from "canvas-confetti";
@@ -25,7 +26,21 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
   const { setStatus, deleteTask, updateTask, tags } = useTaskStore();
-  const [hovered, setHovered] = useState(false);
+  const { focusTaskId, startFocus, stopFocus } = useUIStore();
+  const isFocused = focusTaskId === task.id;
+  const [hovered, setHovered]         = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function handleDeleteClick() {
+    if (confirmDelete) {
+      clearTimeout(confirmTimer.current);
+      deleteTask(task.id);
+    } else {
+      setConfirmDelete(true);
+      confirmTimer.current = setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  }
 
   const PRIORITY_CYCLE: Array<Task["priority"]> = [undefined, "urgent", "high"];
   function cyclePriority() {
@@ -68,13 +83,21 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
       animate={{ opacity: isCompleted || isCancelled ? 0.55 : 1, x: 0 }}
       exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => {
+        setHovered(false);
+        if (confirmDelete) {
+          clearTimeout(confirmTimer.current);
+          setConfirmDelete(false);
+        }
+      }}
       className="group relative flex items-start gap-0 transition-colors"
       style={{
         minHeight: "40px",
-        ...(priorityColor && !isCompleted && !isCancelled
-          ? { boxShadow: `inset 3px 0 0 ${priorityColor}` }
-          : {}),
+        boxShadow: isFocused
+          ? "inset 3px 0 0 var(--color-accent)"
+          : priorityColor && !isCompleted && !isCancelled
+          ? `inset 3px 0 0 ${priorityColor}`
+          : undefined,
       }}
     >
       {/* Line number */}
@@ -201,6 +224,31 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
                 >
                   {priorityIcon ?? <Zap className="w-3.5 h-3.5" />}
                 </motion.button>
+                {/* Focus button */}
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={() => {
+                    if (isFocused) { stopFocus(); }
+                    else {
+                      if (task.status === "pending" || task.status === "seen") {
+                        setStatus(task.id, "in-progress");
+                      }
+                      startFocus(task.id, 25);
+                    }
+                  }}
+                  className={`p-1 rounded transition-colors ${
+                    isFocused
+                      ? "bg-accent text-white"
+                      : "hover:bg-accent-soft text-ink-faint hover:text-accent"
+                  }`}
+                  title={isFocused ? "End focus" : "Focus on this task (25 min)"}
+                >
+                  <Target className="w-3.5 h-3.5" />
+                </motion.button>
+
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -217,11 +265,15 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.1 }}
-                  onClick={() => deleteTask(task.id)}
-                  className="p-1 rounded hover:bg-urgent-soft text-ink-faint hover:text-urgent transition-colors"
-                  title="Delete task"
+                  onClick={handleDeleteClick}
+                  className={`p-1 rounded transition-colors ${
+                    confirmDelete
+                      ? "bg-urgent text-white"
+                      : "hover:bg-urgent-soft text-ink-faint hover:text-urgent"
+                  }`}
+                  title={confirmDelete ? "Click again to confirm delete" : "Delete task"}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  {confirmDelete ? <Check className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
                 </motion.button>
               </>
             )}

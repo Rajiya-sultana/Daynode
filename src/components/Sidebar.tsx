@@ -192,10 +192,10 @@ export default function Sidebar() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-ink-muted hover:bg-binding/40 hover:text-ink transition-all w-full"
         >
           {theme === "dark"
-            ? <Sun className="w-4 h-4 flex-shrink-0" />
-            : <Moon className="w-4 h-4 flex-shrink-0" />}
+            ? <Moon className="w-4 h-4 flex-shrink-0" />
+            : <Sun className="w-4 h-4 flex-shrink-0" />}
           <span className="text-sm font-semibold flex-1 text-left">
-            {theme === "dark" ? "Light mode" : "Dark mode"}
+            {theme === "dark" ? "Dark mode" : "Light mode"}
           </span>
           {/* Toggle pill */}
           <div className={`relative w-9 h-5 rounded-full transition-colors ${theme === "dark" ? "bg-accent" : "bg-binding"}`}>

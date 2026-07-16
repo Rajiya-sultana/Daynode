@@ -25,6 +25,7 @@ const groups = [
       { keys: ["N"], desc: "New task" },
       { keys: ["⌘", "K"], desc: "Quick Capture" },
       { keys: ["←", "→"], desc: "Previous / Next day" },
+      { keys: ["⊙"], desc: "Focus — hover a task and click the target icon" },
     ],
   },
   {

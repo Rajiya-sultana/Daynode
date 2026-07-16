@@ -8,6 +8,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, LayoutGrid } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useTaskStore, type Task, STATUS_META } from "@/store/taskStore";
 import Sidebar from "@/components/Sidebar";
 
@@ -16,6 +17,7 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type ViewMode = "month" | "week";
 
 export default function CalendarPage() {
+  const router = useRouter();
   const { tasks, selectedDate, setSelectedDate, updateTask, generateForDate } = useTaskStore();
   const [view, setView]           = useState<ViewMode>("month");
   const [viewMonth, setViewMonth] = useState(new Date(selectedDate + "T12:00:00"));
@@ -50,7 +52,7 @@ export default function CalendarPage() {
 
   function handleMonthDayClick(date: Date) {
     setSelectedDate(format(date, "yyyy-MM-dd"));
-    window.location.href = "/";
+    router.push("/");
   }
 
   // ── Week / drag helpers ───────────────────────────────────────────────────
@@ -226,7 +228,7 @@ export default function CalendarPage() {
                           isDragging={dragTaskId === task.id}
                           onDragStart={() => { setDragTaskId(task.id); setSelectedDate(dateKey); }}
                           onDragEnd={resetDrag}
-                          onClick={() => { setSelectedDate(dateKey); window.location.href = "/"; }}
+                          onClick={() => { setSelectedDate(dateKey); router.push("/"); }}
                           fmtMin={fmtMin}
                         />
                       ))}
@@ -234,7 +236,7 @@ export default function CalendarPage() {
                       {/* Empty add hint */}
                       {dayTasks.length === 0 && !isOver && (
                         <button
-                          onClick={() => { setSelectedDate(dateKey); window.location.href = "/"; }}
+                          onClick={() => { setSelectedDate(dateKey); router.push("/"); }}
                           className="w-full py-3 rounded-xl border border-dashed border-binding/50 text-ink-faint font-mono text-[9px] hover:border-accent/40 hover:text-accent transition-colors"
                         >
                           + add task

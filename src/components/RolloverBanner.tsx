@@ -33,11 +33,6 @@ export default function RolloverBanner() {
     ? tasks.filter((t) => t.date === fromDate && t.status !== "completed" && t.status !== "cancelled").length
     : 0;
 
-  // Already rolled over tasks from this date today?
-  const alreadyRolled = fromDate
-    ? tasks.some((t) => t.date === selectedDate && t.createdAt > new Date(selectedDate).toISOString())
-    : false;
-
   const bannerKey = fromDate ?? "";
   const show = !!fromDate && incompleteCount > 0 && !dismissed.includes(bannerKey) && !rolled;
 
@@ -90,7 +85,7 @@ export default function RolloverBanner() {
         </motion.div>
       )}
 
-      {/* Success flash */}
+      {/* Success flash — auto-dismiss after 2.5s */}
       {rolled && (
         <motion.div
           key="success"
@@ -98,7 +93,7 @@ export default function RolloverBanner() {
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.2 }}
-          onAnimationComplete={() => setTimeout(() => setRolled(false), 2000)}
+          onAnimationComplete={() => { setTimeout(() => setRolled(false), 2500); }}
           className="overflow-hidden"
         >
           <div className="flex items-center gap-2 px-6 py-2.5 bg-done-soft border-b border-done/20">

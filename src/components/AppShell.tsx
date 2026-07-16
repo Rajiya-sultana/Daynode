@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import QuickCapture from "./QuickCapture";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import EndOfDayPrompt from "./EndOfDayPrompt";
+import FocusMode from "./FocusMode";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [quickOpen,     setQuickOpen]     = useState(false);
@@ -43,6 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <QuickCapture      open={quickOpen}     onClose={() => setQuickOpen(false)} />
       <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <EndOfDayPrompt />
+      <FocusMode />
     </>
   );
 }
