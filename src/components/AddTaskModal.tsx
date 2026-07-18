@@ -12,9 +12,10 @@ interface AddTaskModalProps {
   open: boolean;
   onClose: () => void;
   task?: Task;
+  inboxMode?: boolean;
 }
 
-export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps) {
+export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTaskModalProps) {
   const { addTask, updateTask, tags, selectedDate } = useTaskStore();
   const isEditing = !!task;
 
@@ -88,7 +89,7 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
       addTask({
         title: title.trim(),
         description: description.trim(),
-        date: selectedDate,
+        date: inboxMode ? "" : selectedDate,
         deadline,
         tags: selectedTags,
         estimatedMinutes: estMins,
@@ -145,9 +146,11 @@ export default function AddTaskModal({ open, onClose, task }: AddTaskModalProps)
             <div className="flex items-center justify-between px-6 py-5 border-b border-binding/40">
               <div>
                 <p className="font-mono text-[10px] text-ink-faint uppercase tracking-widest mb-0.5">
-                  {isEditing ? "edit entry" : "new entry"}
+                  {isEditing ? "edit entry" : inboxMode ? "inbox" : "new entry"}
                 </p>
-                <h2 className="font-semibold text-ink text-base">{isEditing ? "Edit Task" : "Add Task"}</h2>
+                <h2 className="font-semibold text-ink text-base">
+                  {isEditing ? "Edit Task" : inboxMode ? "Add to Inbox" : "Add Task"}
+                </h2>
               </div>
               <button
                 onClick={onClose}

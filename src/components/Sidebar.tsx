@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat, Inbox } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
@@ -16,13 +16,15 @@ import { useSync } from "@/hooks/useSync";
 const navItems = [
   { href: "/",          icon: ListTodo,     label: "Today",    shortcut: "1" },
   { href: "/calendar",  icon: CalendarDays, label: "Calendar", shortcut: "2" },
-  { href: "/stats",     icon: BarChart3,    label: "Stats",    shortcut: "3" },
-  { href: "/review",    icon: ClipboardList, label: "Review",  shortcut: "4" },
+  { href: "/inbox",     icon: Inbox,        label: "Inbox",    shortcut: "3" },
+  { href: "/stats",     icon: BarChart3,    label: "Stats",    shortcut: "4" },
+  { href: "/review",    icon: ClipboardList, label: "Review",  shortcut: "5" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { selectedDate, setSelectedDate, currentStreak, longestStreak, dailyHistory } = useTaskStore();
+  const { selectedDate, setSelectedDate, currentStreak, longestStreak, dailyHistory, tasks } = useTaskStore();
+  const inboxCount = tasks.filter((t) => t.date === "" && t.status !== "completed" && t.status !== "cancelled").length;
   const { theme, toggleTheme, profile } = useUIStore();
   const [profileOpen, setProfileOpen]     = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
@@ -121,6 +123,13 @@ export default function Sidebar() {
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm font-semibold flex-1">{item.label}</span>
+              {item.href === "/inbox" && inboxCount > 0 && (
+                <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
+                  active ? "bg-white/20 text-white" : "bg-accent text-white"
+                }`}>
+                  {inboxCount}
+                </span>
+              )}
               <kbd className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
                 active ? "border-white/30 text-white/60 bg-white/10" : "border-binding text-ink-faint bg-parchment group-hover:border-ink-muted"
               }`}>

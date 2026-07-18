@@ -86,11 +86,12 @@ interface TaskState {
   journals: Record<string, string>; // date → text
 
   setSelectedDate: (date: string) => void;
-  addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks">) => void;
+  addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   setStatus: (id: string, status: TaskStatus) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (date: string, taskIds: string[]) => void;
+  scheduleTask: (id: string, date: string) => void;
 
   // Subtasks
   addSubtask: (taskId: string, title: string) => void;
@@ -190,9 +191,10 @@ export const useTaskStore = create<TaskState>()(
 
       addTask: (taskData) => {
         const tasks = get().tasks;
-        const order = tasks.filter((t) => t.date === taskData.date).length;
+        const date = taskData.date ?? "";
+        const order = tasks.filter((t) => t.date === date).length;
         const newTask: Task = {
-          ...taskData, id: nanoid(), status: "pending",
+          ...taskData, date, id: nanoid(), status: "pending",
           subtasks: [], order, createdAt: new Date().toISOString(), completedAt: null,
         };
         rebuildHistory([...tasks, newTask], set);
@@ -216,6 +218,12 @@ export const useTaskStore = create<TaskState>()(
       },
 
       deleteTask: (id) => rebuildHistory(get().tasks.filter((t) => t.id !== id), set),
+
+      scheduleTask: (id, date) => {
+        const tasks = get().tasks;
+        const order = tasks.filter((t) => t.date === date).length;
+        rebuildHistory(tasks.map((t) => t.id === id ? { ...t, date, order } : t), set);
+      },
 
       reorderTasks: (date, taskIds) => {
         const others = get().tasks.filter((t) => t.date !== date);

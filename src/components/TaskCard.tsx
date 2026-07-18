@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp, Check, Target, GripVertical } from "lucide-react";
+import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp, Check, Target, GripVertical, CalendarPlus } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -24,15 +24,18 @@ interface TaskCardProps {
   task: Task;
   lineNumber: number;
   onEdit?: (task: Task) => void;
+  onSchedule?: (id: string, date: string) => void;
 }
 
-export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
+export default function TaskCard({ task, lineNumber, onEdit, onSchedule }: TaskCardProps) {
   const { setStatus, deleteTask, updateTask, tags } = useTaskStore();
   const { focusTaskId, startFocus, stopFocus } = useUIStore();
   const isFocused = focusTaskId === task.id;
   const [hovered, setHovered]           = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scheduleOpen, setScheduleOpen]  = useState(false);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const scheduleDateRef = useRef<HTMLInputElement>(null);
 
   const {
     attributes,
@@ -283,6 +286,70 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
                   >
                     <Target className="w-3.5 h-3.5" />
                   </motion.button>
+
+                  {onSchedule && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.1 }}
+                      className="relative"
+                    >
+                      <button
+                        onClick={() => {
+                          setScheduleOpen((v) => !v);
+                          setTimeout(() => scheduleDateRef.current?.showPicker?.(), 50);
+                        }}
+                        className="p-1 rounded hover:bg-accent-soft text-ink-faint hover:text-accent transition-colors"
+                        title="Schedule to a date"
+                      >
+                        <CalendarPlus className="w-3.5 h-3.5" />
+                      </button>
+                      <AnimatePresence>
+                        {scheduleOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute right-0 top-full mt-1.5 z-50 bg-paper border border-binding/60 rounded-xl shadow-lg p-3 flex flex-col gap-2 min-w-[160px]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => { onSchedule(task.id, format(new Date(), "yyyy-MM-dd")); setScheduleOpen(false); }}
+                              className="text-left font-mono text-[10px] font-semibold text-ink-muted hover:text-accent px-2 py-1.5 rounded-lg hover:bg-accent-soft transition-colors"
+                            >
+                              → Today
+                            </button>
+                            <button
+                              onClick={() => {
+                                const tomorrow = new Date();
+                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                onSchedule(task.id, format(tomorrow, "yyyy-MM-dd"));
+                                setScheduleOpen(false);
+                              }}
+                              className="text-left font-mono text-[10px] font-semibold text-ink-muted hover:text-accent px-2 py-1.5 rounded-lg hover:bg-accent-soft transition-colors"
+                            >
+                              → Tomorrow
+                            </button>
+                            <div className="border-t border-binding/40 pt-2">
+                              <input
+                                ref={scheduleDateRef}
+                                type="date"
+                                className="w-full bg-transparent font-mono text-[10px] text-ink outline-none border-b border-ruled focus:border-accent py-1 transition-colors"
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    onSchedule(task.id, e.target.value);
+                                    setScheduleOpen(false);
+                                  }
+                                }}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
 
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
