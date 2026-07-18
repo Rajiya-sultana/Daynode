@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useTaskStore, type Task, STATUS_META } from "@/store/taskStore";
 import TaskCard from "./TaskCard";
@@ -12,24 +13,48 @@ const GROUPS = [
   { key: "cancelled",   statuses: ["cancelled"] },
 ] as const;
 
+const PRIORITY_WEIGHT = { urgent: 0, high: 1, undefined: 2 } as const;
+
+function priorityWeight(t: Task) {
+  return PRIORITY_WEIGHT[t.priority as keyof typeof PRIORITY_WEIGHT ?? "undefined"] ?? 2;
+}
+
 interface TaskListProps {
   onEdit?: (task: Task) => void;
 }
 
 export default function TaskList({ onEdit }: TaskListProps) {
-  const { tasks, selectedDate } = useTaskStore();
+  const { tasks, selectedDate, reorderTasks } = useTaskStore();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  const PRIORITY_WEIGHT = { urgent: 0, high: 1, undefined: 2 } as const;
-  function priorityWeight(t: Task) {
-    return PRIORITY_WEIGHT[t.priority as keyof typeof PRIORITY_WEIGHT ?? "undefined"] ?? 2;
+  function getSortedDateTasks() {
+    return tasks
+      .filter((t: Task) => t.date === selectedDate)
+      .sort((a: Task, b: Task) => {
+        const pw = priorityWeight(a) - priorityWeight(b);
+        return pw !== 0 ? pw : a.order - b.order;
+      });
   }
 
-  const dateTasks = tasks
-    .filter((t: Task) => t.date === selectedDate)
-    .sort((a: Task, b: Task) => {
-      const pw = priorityWeight(a) - priorityWeight(b);
-      return pw !== 0 ? pw : a.order - b.order;
-    });
+  function handleSelect(id: string) {
+    setSelectedTaskId((prev) => (prev === id ? null : id));
+  }
+
+  function handleMoveTop(taskId: string) {
+    const sorted = getSortedDateTasks();
+    const others = sorted.filter((t: Task) => t.id !== taskId);
+    reorderTasks(selectedDate, [taskId, ...others.map((t: Task) => t.id)]);
+    setSelectedTaskId(null);
+  }
+
+  function handleMoveBottom(taskId: string) {
+    const sorted = getSortedDateTasks();
+    const others = sorted.filter((t: Task) => t.id !== taskId);
+    reorderTasks(selectedDate, [...others.map((t: Task) => t.id), taskId]);
+    setSelectedTaskId(null);
+  }
+
+  const dateTasks = getSortedDateTasks();
 
   if (dateTasks.length === 0) return <EmptyState />;
 
@@ -95,7 +120,16 @@ export default function TaskList({ onEdit }: TaskListProps) {
 
             <AnimatePresence mode="popLayout">
               {group.map((task: Task) => (
-                <TaskCard key={task.id} task={task} lineNumber={lineCounter++} onEdit={onEdit} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  lineNumber={lineCounter++}
+                  onEdit={onEdit}
+                  isSelected={selectedTaskId === task.id}
+                  onSelect={handleSelect}
+                  onMoveTop={handleMoveTop}
+                  onMoveBottom={handleMoveBottom}
+                />
               ))}
             </AnimatePresence>
           </div>

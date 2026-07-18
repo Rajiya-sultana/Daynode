@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp, Check, Target } from "lucide-react";
+import { Trash2, Clock, Pencil, Timer, Zap, TrendingUp, Check, Target, ChevronsUp, ChevronsDown } from "lucide-react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { useTaskStore, type Task, type Tag, STATUS_META } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
@@ -22,9 +22,13 @@ interface TaskCardProps {
   task: Task;
   lineNumber: number;
   onEdit?: (task: Task) => void;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
+  onMoveTop?: (id: string) => void;
+  onMoveBottom?: (id: string) => void;
 }
 
-export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
+export default function TaskCard({ task, lineNumber, onEdit, isSelected, onSelect, onMoveTop, onMoveBottom }: TaskCardProps) {
   const { setStatus, deleteTask, updateTask, tags } = useTaskStore();
   const { focusTaskId, startFocus, stopFocus } = useUIStore();
   const isFocused = focusTaskId === task.id;
@@ -93,7 +97,10 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
       className="group relative flex items-start gap-0 transition-colors"
       style={{
         minHeight: "40px",
+        backgroundColor: isSelected ? "var(--color-accent-soft, rgba(91,141,239,0.08))" : undefined,
         boxShadow: isFocused
+          ? "inset 3px 0 0 var(--color-accent)"
+          : isSelected
           ? "inset 3px 0 0 var(--color-accent)"
           : priorityColor && !isCompleted && !isCancelled
           ? `inset 3px 0 0 ${priorityColor}`
@@ -138,12 +145,15 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
         </button>
 
         {/* Title + meta */}
-        <div className="flex-1 min-w-0">
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => onSelect?.(task.id)}
+        >
           <div className="flex items-center gap-1.5">
             {/* Priority icon — always visible when set */}
             {priorityIcon && (
               <button
-                onClick={cyclePriority}
+                onClick={(e) => { e.stopPropagation(); cyclePriority(); }}
                 className="flex-shrink-0 transition-transform hover:scale-110"
                 style={{ color: priorityColor }}
                 title={`Priority: ${task.priority} — click to change`}
@@ -205,6 +215,35 @@ export default function TaskCard({ task, lineNumber, onEdit }: TaskCardProps) {
         {/* Right: status picker + delete */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusPicker status={task.status} onChange={handleStatusChange} />
+
+          <AnimatePresence>
+            {isSelected && (
+              <>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={(e) => { e.stopPropagation(); onMoveTop?.(task.id); }}
+                  className="p-1 rounded hover:bg-accent-soft text-ink-faint hover:text-accent transition-colors"
+                  title="Move to top"
+                >
+                  <ChevronsUp className="w-3.5 h-3.5" />
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.1 }}
+                  onClick={(e) => { e.stopPropagation(); onMoveBottom?.(task.id); }}
+                  className="p-1 rounded hover:bg-accent-soft text-ink-faint hover:text-accent transition-colors"
+                  title="Move to bottom"
+                >
+                  <ChevronsDown className="w-3.5 h-3.5" />
+                </motion.button>
+              </>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {hovered && (
