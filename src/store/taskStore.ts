@@ -73,9 +73,13 @@ export interface Cover {
 export interface VisionItem {
   id: string;
   type: "image" | "text";
-  content: string;   // base64 dataURL for image, quote text for text
-  label?: string;    // optional caption / source
-  color?: string;    // background color for text cards
+  content: string;
+  label?: string;
+  color?: string;
+  cardStyle?: "polaroid" | "sticky" | "clipping";
+  x?: number;
+  y?: number;
+  zIndex?: number;
   createdAt: string;
 }
 
