@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ImagePlus, X, Shuffle, Move, Check } from "lucide-react";
+import { ImagePlus, X, Shuffle, Move, Check, RotateCw } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 
 const GRADIENTS = [
@@ -20,6 +20,23 @@ const GRADIENTS = [
   "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
 ];
 
+function rotateImageData(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width  = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      resolve(canvas.toDataURL());
+    };
+    img.src = dataUrl;
+  });
+}
+
 export default function CoverImage() {
   const { selectedDate, covers, setCover } = useTaskStore();
   const cover = covers[selectedDate] ?? null;
@@ -27,8 +44,17 @@ export default function CoverImage() {
   const [hovered, setHovered]       = useState(false);
   const [adjusting, setAdjusting]   = useState(false);
   const [positionY, setPositionY]   = useState(50);
+  const [rotating, setRotating]     = useState(false);
   const fileRef   = useRef<HTMLInputElement>(null);
   const dragRef   = useRef<{ startY: number; startPos: number } | null>(null);
+
+  async function handleRotate() {
+    if (cover?.type !== "image" || rotating) return;
+    setRotating(true);
+    const rotated = await rotateImageData(cover.value);
+    setCover(selectedDate, { ...cover, value: rotated });
+    setRotating(false);
+  }
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -176,15 +202,25 @@ export default function CoverImage() {
             transition={{ duration: 0.15 }}
             className="absolute bottom-3 right-4 flex items-center gap-2"
           >
-            {/* Adjust button — only for image covers */}
+            {/* Image-only controls */}
             {cover.type === "image" && (
-              <button
-                onClick={startAdjust}
-                className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors"
-              >
-                <Move className="w-3 h-3" />
-                Adjust
-              </button>
+              <>
+                <button
+                  onClick={handleRotate}
+                  disabled={rotating}
+                  className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors disabled:opacity-50"
+                >
+                  <RotateCw className={`w-3 h-3 ${rotating ? "animate-spin" : ""}`} />
+                  Rotate
+                </button>
+                <button
+                  onClick={startAdjust}
+                  className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-ink/40 text-white backdrop-blur-sm hover:bg-ink/60 transition-colors"
+                >
+                  <Move className="w-3 h-3" />
+                  Adjust
+                </button>
+              </>
             )}
             <button
               onClick={() => setPickerOpen(true)}
