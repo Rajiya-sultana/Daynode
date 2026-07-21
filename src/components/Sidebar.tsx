@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat, Inbox, Sparkles } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/inbox",     icon: Inbox,        label: "Inbox",    shortcut: "3" },
   { href: "/stats",     icon: BarChart3,    label: "Stats",    shortcut: "4" },
   { href: "/review",    icon: ClipboardList, label: "Review",  shortcut: "5" },
+  { href: "/vision",    icon: Sparkles,      label: "Vision",  shortcut: "6" },
 ];
 
 export default function Sidebar() {

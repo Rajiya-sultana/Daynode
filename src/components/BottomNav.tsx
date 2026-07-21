@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, BarChart3, ListTodo, Inbox } from "lucide-react";
+import { CalendarDays, BarChart3, ListTodo, Inbox, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,7 +8,8 @@ const navItems = [
   { href: "/", icon: ListTodo, label: "Today" },
   { href: "/calendar", icon: CalendarDays, label: "Calendar" },
   { href: "/inbox", icon: Inbox, label: "Inbox" },
-  { href: "/stats", icon: BarChart3, label: "Stats" },
+  { href: "/stats",   icon: BarChart3,  label: "Stats"  },
+  { href: "/vision",  icon: Sparkles,   label: "Vision" },
 ];
 
 export default function BottomNav() {

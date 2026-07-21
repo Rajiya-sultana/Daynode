@@ -70,6 +70,15 @@ export interface Cover {
   positionY?: number; // 0–100, default 50 (center)
 }
 
+export interface VisionItem {
+  id: string;
+  type: "image" | "text";
+  content: string;   // base64 dataURL for image, quote text for text
+  label?: string;    // optional caption / source
+  color?: string;    // background color for text cards
+  createdAt: string;
+}
+
 interface DailyHistory {
   [date: string]: { total: number; completed: number };
 }
@@ -84,6 +93,7 @@ interface TaskState {
   longestStreak: number;
   covers: Record<string, Cover>;
   journals: Record<string, string>; // date → text
+  visionBoard: VisionItem[];
 
   setSelectedDate: (date: string) => void;
   addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
@@ -105,6 +115,11 @@ interface TaskState {
 
   // Cover
   setCover: (date: string, cover: Cover | null) => void;
+
+  // Vision board
+  addVisionItem: (item: Omit<VisionItem, "id" | "createdAt">) => void;
+  deleteVisionItem: (id: string) => void;
+  updateVisionItem: (id: string, updates: Partial<VisionItem>) => void;
 
   // Journal
   setJournal: (date: string, text: string) => void;
@@ -175,7 +190,7 @@ export const useTaskStore = create<TaskState>()(
       tasks: [], tags: DEFAULT_TAGS, recurringTasks: [],
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
-      covers: {}, journals: {},
+      covers: {}, journals: {}, visionBoard: [],
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -327,6 +342,15 @@ export const useTaskStore = create<TaskState>()(
 
         if (toCreate.length > 0) rebuildHistory([...tasks, ...toCreate], set);
       },
+
+      // ── Vision board ─────────────────────────────────────────
+      addVisionItem: (item) => set((s) => ({
+        visionBoard: [{ ...item, id: nanoid(), createdAt: new Date().toISOString() }, ...s.visionBoard],
+      })),
+      deleteVisionItem: (id) => set((s) => ({ visionBoard: s.visionBoard.filter((v) => v.id !== id) })),
+      updateVisionItem: (id, updates) => set((s) => ({
+        visionBoard: s.visionBoard.map((v) => v.id === id ? { ...v, ...updates } : v),
+      })),
 
       // ── Rollover ─────────────────────────────────────────────
       rolloverTasks: (fromDate, toDate) => {
