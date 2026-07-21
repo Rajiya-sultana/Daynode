@@ -48,8 +48,10 @@ function Tape({ rot: r }: { rot: number }) {
 export default function VisionBoard() {
   const { visionBoard, addVisionItem, deleteVisionItem, updateVisionItem } = useTaskStore();
 
-  /* Per-card local position during drag — committed to store on mouseup */
+  /* Per-card local position during drag — committed to store on pointerup */
   const localPosRef = useRef<Record<string, { x: number; y: number }>>({});
+  const dragRef = useRef<{ id: string; origX: number; origY: number; startX: number; startY: number } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
   const [zMap, setZMap] = useState<Record<string, number>>({});
   const topZRef = useRef(100);
@@ -87,33 +89,33 @@ export default function VisionBoard() {
     setZMap(prev => ({ ...prev, [id]: z }));
   }
 
-  /* ── Drag ── */
-  function startDrag(e: React.MouseEvent, item: VisionItem) {
+  /* ── Drag (pointer capture — pointerup always fires on the element) ── */
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>, item: VisionItem) {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
     bringToFront(item.id);
+    const pos = getPos(item);
+    dragRef.current = { id: item.id, origX: pos.x, origY: pos.y, startX: e.clientX, startY: e.clientY };
+    setDraggingId(item.id);
+  }
 
-    const id = item.id;
-    const orig = getPos(item);
-    let curX = orig.x, curY = orig.y;
-    const sx = e.clientX, sy = e.clientY;
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>, id: string) {
+    if (!dragRef.current || dragRef.current.id !== id) return;
+    e.preventDefault();
+    const { origX, origY, startX, startY } = dragRef.current;
+    localPosRef.current[id] = { x: origX + e.clientX - startX, y: origY + e.clientY - startY };
+    forceUpdate(n => n + 1);
+  }
 
-    function onMove(ev: MouseEvent) {
-      curX = orig.x + ev.clientX - sx;
-      curY = orig.y + ev.clientY - sy;
-      localPosRef.current[id] = { x: curX, y: curY };
-      forceUpdate(n => n + 1);
-    }
-
-    function onUp() {
-      updateVisionItem(id, { x: curX, y: curY });
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>, id: string) {
+    if (!dragRef.current || dragRef.current.id !== id) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const pos = localPosRef.current[id];
+    if (pos) updateVisionItem(id, { x: pos.x, y: pos.y });
+    dragRef.current = null;
+    setDraggingId(null);
   }
 
   /* ── Add handlers ── */
@@ -243,11 +245,15 @@ export default function VisionBoard() {
                   left: pos.x,
                   top: pos.y,
                   zIndex: z + 2,
-                  cursor: "grab",
+                  cursor: draggingId === item.id ? "grabbing" : "grab",
                   userSelect: "none",
                   WebkitUserSelect: "none",
+                  touchAction: "none",
                 }}
-                onMouseDown={e => startDrag(e, item)}
+                onPointerDown={e => onPointerDown(e, item)}
+                onPointerMove={e => onPointerMove(e, item.id)}
+                onPointerUp={e => onPointerUp(e, item.id)}
+                onPointerCancel={e => onPointerUp(e, item.id)}
                 onClick={() => bringToFront(item.id)}
                 onDoubleClick={item.type === "image" ? () => setLightbox(item.content) : undefined}
               >
@@ -255,7 +261,7 @@ export default function VisionBoard() {
                 <button
                   className="absolute -top-2.5 -right-2.5 z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ background: "#E63946", color: "white" }}
-                  onMouseDown={e => e.stopPropagation()}
+                  onPointerDown={e => e.stopPropagation()}
                   onClick={e => { e.stopPropagation(); deleteVisionItem(item.id); }}
                   title="Remove"
                 >
@@ -267,7 +273,7 @@ export default function VisionBoard() {
                   <button
                     className="absolute -top-2.5 -left-2.5 z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                     style={{ background: "#2C2416", color: "#FFE066", border: "1px solid rgba(255,224,102,0.4)" }}
-                    onMouseDown={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); setEditingId(item.id); setEditLabel(item.label ?? ""); }}
                   >
                     <Pencil className="w-2.5 h-2.5" />
