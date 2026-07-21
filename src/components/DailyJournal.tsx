@@ -42,11 +42,16 @@ export default function DailyJournal() {
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
-    // Auto-link any URLs in pasted content
-    const html = text.replace(
-      /(https?:\/\/[^\s]+)/g,
-      `<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">$1</a>`,
-    );
+    // Preserve line breaks, then linkify URLs per line
+    const html = text
+      .split("\n")
+      .map((line) =>
+        line.replace(
+          /(https?:\/\/[^\s]+)/g,
+          `<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">$1</a>`,
+        ),
+      )
+      .join("<br>");
     document.execCommand("insertHTML", false, html);
   }
 
