@@ -71,11 +71,20 @@ export default function DailyJournal() {
             <div className="px-6 pb-4 pt-1 flex flex-col gap-1.5">
               <textarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                onFocus={(e) => {
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
                 placeholder={"What's on your mind today?\nCapture thoughts, ideas, reflections…"}
                 rows={4}
                 autoFocus
-                className="w-full bg-transparent text-sm text-ink placeholder:text-ink-faint/50 outline-none resize-none leading-relaxed"
+                className="w-full bg-transparent text-sm text-ink placeholder:text-ink-faint/50 outline-none resize-none leading-relaxed overflow-y-auto"
+                style={{ maxHeight: "60vh" }}
               />
               <div className="flex items-center gap-3">
                 <span className="font-mono text-[9px] text-ink-faint">
