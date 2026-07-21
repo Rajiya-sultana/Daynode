@@ -40,33 +40,20 @@ export default function DailyJournal() {
   }
 
   function handlePaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
+    const text = e.clipboardData.getData("text/plain").trim();
+    const isBareUrl = /^https?:\/\/\S+$/.test(text);
 
-    const linkify = (s: string) =>
-      s.replace(
-        /(https?:\/\/[^\s]+)/g,
-        `<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">$1</a>`,
+    if (isBareUrl) {
+      // Single URL paste → make it a clickable link
+      e.preventDefault();
+      document.execCommand(
+        "insertHTML", false,
+        `<a href="${text}" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">${text}</a>`,
       );
-
-    // Double (or more) newlines → separate <p> paragraphs
-    // Single newlines within a paragraph → <br>
-    const html = text
-      .split(/\n{2,}/)
-      .map((para) => `<p>${para.split(/\n/).map(linkify).join("<br>")}</p>`)
-      .join("");
-
-    const sel = window.getSelection();
-    if (!sel?.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    const fragment = document.createRange().createContextualFragment(html);
-    range.insertNode(fragment);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    scheduleSave();
+    }
+    // Everything else: let the browser paste natively so it preserves
+    // paragraphs, line breaks, and indentation exactly as written.
+    setTimeout(scheduleSave, 100);
   }
 
   const storedHtml = journals[selectedDate] ?? "";
