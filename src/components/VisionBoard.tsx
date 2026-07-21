@@ -2,695 +2,465 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ImagePlus, Quote, Pencil, Check } from "lucide-react";
+import { X, Plus, ImagePlus, Quote, ZoomIn, PenLine, Check, ChevronDown } from "lucide-react";
 import { useTaskStore, type VisionItem } from "@/store/taskStore";
 
-/* ── Stable helpers (derived from nanoid string, never change) ── */
-function stableRot(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return (((h % 13) + 13) % 13) - 6; // -6..+6
-}
-
-function stableXY(id: string) {
-  let h1 = 5381, h2 = 52711;
-  for (let i = 0; i < id.length; i++) {
-    const c = id.charCodeAt(i);
-    h1 = (Math.imul(h1, 33) ^ c) | 0;
-    h2 = (Math.imul(h2, 31) ^ (c * 7)) | 0;
-  }
-  return {
-    x: ((Math.abs(h1) % 960) + 60),
-    y: ((Math.abs(h2) % 560) + 60),
-  };
-}
-
-const STICKY_COLORS = ["#FFE066", "#A8D8A8", "#F9B7B7", "#B7C9F9", "#FFD4A3", "#E8D5FF"];
-
-type AddMode = "image" | "quote" | "sticky" | null;
-
-/* ── Tape strip — reused on every card ── */
-function Tape({ rot: r }: { rot: number }) {
-  return (
-    <div
-      className="absolute -top-4 left-1/2 pointer-events-none"
-      style={{
-        transform: `translateX(-50%) rotate(${r * 0.6}deg)`,
-        width: 52, height: 18,
-        background: "rgba(245,230,163,0.72)",
-        boxShadow: "inset 0 0 8px rgba(0,0,0,0.08)",
-        borderRadius: 2,
-      }}
-    />
-  );
-}
+/* ─── Quote card colour presets ─────────────────────────────────── */
+const QUOTE_THEMES = [
+  { bg: "#0f0c29", text: "#FFE066", accent: "#FFE066" },   // Dark + gold
+  { bg: "#1a0533", text: "#e8b4f8", accent: "#c77dff" },   // Purple night
+  { bg: "#0d1f0d", text: "#a8f0b4", accent: "#69e87c" },   // Forest
+  { bg: "#1f0d0d", text: "#f9b7b7", accent: "#f87171" },   // Rose dark
+  { bg: "#f5f0e8", text: "#1a1a1a", accent: "#1a1a1a" },   // Paper white
+  { bg: "#0a1628", text: "#93c5fd", accent: "#60a5fa" },   // Ocean
+];
 
 export default function VisionBoard() {
   const { visionBoard, addVisionItem, deleteVisionItem, updateVisionItem } = useTaskStore();
 
-  /* Per-card local position during drag — committed to store on pointerup */
-  const localPosRef = useRef<Record<string, { x: number; y: number }>>({});
-  const dragRef = useRef<{ id: string; origX: number; origY: number; startX: number; startY: number } | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [, forceUpdate] = useState(0);
-  const [zMap, setZMap] = useState<Record<string, number>>({});
-  const topZRef = useRef(100);
+  /* FAB */
+  const [fabOpen, setFabOpen]     = useState(false);
 
-  /* FAB / add-mode state */
-  const [fabOpen, setFabOpen] = useState(false);
-  const [addMode, setAddMode] = useState<AddMode>(null);
-  const [formText, setFormText] = useState("");
-  const [formLabel, setFormLabel] = useState("");
-  const [formColor, setFormColor] = useState(STICKY_COLORS[0]);
+  /* Add quote form */
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteText, setQuoteText] = useState("");
+  const [quoteTheme, setQuoteTheme] = useState(0);
 
-  /* Editing labels on existing cards */
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState("");
+  /* Note-on-image editing */
+  const [noteId, setNoteId]       = useState<string | null>(null);
+  const [noteText, setNoteText]   = useState("");
 
-  /* Lightbox for double-click on image */
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  /* Lightbox */
+  const [zoom, setZoom]           = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  /* ── Helpers ── */
-  function getPos(item: VisionItem) {
-    const lp = localPosRef.current[item.id];
-    if (lp) return lp;
-    if (item.x != null && item.y != null) return { x: item.x, y: item.y };
-    return stableXY(item.id);
-  }
-
-  function getZ(item: VisionItem) {
-    return zMap[item.id] ?? item.zIndex ?? 1;
-  }
-
-  function bringToFront(id: string) {
-    const z = ++topZRef.current;
-    setZMap(prev => ({ ...prev, [id]: z }));
-  }
-
-  /* ── Drag (pointer capture — pointerup always fires on the element) ── */
-  function onPointerDown(e: React.PointerEvent<HTMLDivElement>, item: VisionItem) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    bringToFront(item.id);
-    const pos = getPos(item);
-    dragRef.current = { id: item.id, origX: pos.x, origY: pos.y, startX: e.clientX, startY: e.clientY };
-    setDraggingId(item.id);
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>, id: string) {
-    if (!dragRef.current || dragRef.current.id !== id) return;
-    e.preventDefault();
-    const { origX, origY, startX, startY } = dragRef.current;
-    localPosRef.current[id] = { x: origX + e.clientX - startX, y: origY + e.clientY - startY };
-    forceUpdate(n => n + 1);
-  }
-
-  function onPointerUp(e: React.PointerEvent<HTMLDivElement>, id: string) {
-    if (!dragRef.current || dragRef.current.id !== id) return;
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    const pos = localPosRef.current[id];
-    if (pos) updateVisionItem(id, { x: pos.x, y: pos.y });
-    dragRef.current = null;
-    setDraggingId(null);
-  }
-
-  /* ── Add handlers ── */
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  /* ── handlers ── */
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     Array.from(e.target.files ?? []).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = ev =>
-        addVisionItem({ type: "image", content: ev.target?.result as string, cardStyle: "polaroid" });
-      reader.readAsDataURL(file);
+      const r = new FileReader();
+      r.onload = ev => addVisionItem({ type: "image", content: ev.target?.result as string, cardStyle: "polaroid" });
+      r.readAsDataURL(file);
     });
     e.target.value = "";
     setFabOpen(false);
   }
 
-  function handleAddText() {
-    if (!formText.trim()) return;
-    addVisionItem({
-      type: "text",
-      content: formText.trim(),
-      label: formLabel.trim() || undefined,
-      color: addMode === "sticky" ? formColor : undefined,
-      cardStyle: addMode === "sticky" ? "sticky" : "clipping",
-    });
-    setFormText(""); setFormLabel(""); setFormColor(STICKY_COLORS[0]);
-    setAddMode(null);
+  function addQuote() {
+    if (!quoteText.trim()) return;
+    const t = QUOTE_THEMES[quoteTheme];
+    addVisionItem({ type: "text", content: quoteText.trim(), color: JSON.stringify(t), cardStyle: "clipping" });
+    setQuoteText(""); setQuoteOpen(false); setFabOpen(false);
   }
 
-  function saveLabel(id: string) {
-    updateVisionItem(id, { label: editLabel.trim() || undefined });
-    setEditingId(null);
+  function saveNote(id: string) {
+    updateVisionItem(id, { label: noteText.trim() || undefined });
+    setNoteId(null);
   }
 
   /* ── Empty state ── */
-  if (visionBoard.length === 0 && !addMode) {
+  if (visionBoard.length === 0 && !quoteOpen) {
     return (
-      <div
-        className="flex flex-col items-center justify-center"
-        style={{ minHeight: "calc(100vh - 64px)", background: "#2C2416" }}
-      >
-        <div className="text-6xl opacity-20 mb-4" style={{ filter: "sepia(1)" }}>✦</div>
-        <p className="font-mono text-sm text-amber-200/50 mb-1">Your vision board is empty</p>
-        <p className="font-mono text-[10px] text-amber-200/30 mb-6 text-center max-w-xs">
-          Pin images, quotes, and affirmations of what you're building toward.
-        </p>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] gap-4" style={{ background: "#141414" }}>
+        <p className="text-2xl font-bold" style={{ color: "rgba(255,255,255,0.08)", fontFamily: "Georgia, serif" }}>your vision starts here</p>
+        <div className="flex gap-3 mt-2">
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors"
-            style={{ background: "#8B5E3C" }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white"
+            style={{ background: "#3d3d3d" }}
           >
-            <ImagePlus className="w-4 h-4" /> Add Image
+            <ImagePlus className="w-4 h-4" /> Add images
           </button>
           <button
-            onClick={() => { setAddMode("quote"); setFabOpen(false); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-            style={{ background: "rgba(255,224,102,0.15)", color: "#FFE066", border: "1px solid rgba(255,224,102,0.3)" }}
+            onClick={() => setQuoteOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold"
+            style={{ background: "rgba(255,224,102,0.12)", color: "#FFE066", border: "1px solid rgba(255,224,102,0.25)" }}
           >
-            <Quote className="w-4 h-4" /> Add Quote
-          </button>
-          <button
-            onClick={() => { setAddMode("sticky"); setFabOpen(false); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-            style={{ background: "rgba(168,216,168,0.15)", color: "#A8D8A8", border: "1px solid rgba(168,216,168,0.3)" }}
-          >
-            <Pencil className="w-4 h-4" /> Sticky Note
+            <Quote className="w-4 h-4" /> Add quote
           </button>
         </div>
-        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
-        <AddForm
-          mode={addMode}
-          text={formText} onText={setFormText}
-          label={formLabel} onLabel={setFormLabel}
-          color={formColor} onColor={setFormColor}
-          onSubmit={handleAddText}
-          onClose={() => setAddMode(null)}
-        />
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
+        <QuoteModal open={quoteOpen} text={quoteText} onText={setQuoteText} theme={quoteTheme} onTheme={setQuoteTheme} onAdd={addQuote} onClose={() => setQuoteOpen(false)} />
       </div>
     );
   }
 
   return (
-    <div className="relative overflow-auto" style={{ minHeight: "calc(100vh - 64px)", background: "#2C2416" }}>
+    <div className="relative" style={{ background: "#141414", minHeight: "calc(100vh - 64px)" }}>
 
-      {/* Cork noise texture */}
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        style={{ width: "100%", height: "100%", opacity: 0.13, position: "fixed", top: 0, left: 0 }}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <filter id="cork-noise">
-          <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" />
-          <feColorMatrix type="saturate" values="0.4" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#cork-noise)" />
-      </svg>
-
-      {/* Vignette */}
-      <div
-        className="pointer-events-none"
-        style={{
-          position: "fixed", inset: 0,
-          background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.65) 100%)",
-          zIndex: 1,
-        }}
-      />
-
-      {/* Board canvas */}
-      <div
-        className="relative"
-        style={{ minWidth: 1800, minHeight: 1300 }}
-      >
+      {/* ── Pinterest masonry grid ── */}
+      <div className="p-4 pb-24" style={{ columns: "3 260px", columnGap: "12px" }}>
         <AnimatePresence>
-          {visionBoard.map(item => {
-            const pos = getPos(item);
-            const z = getZ(item);
-            const r = stableRot(item.id);
-
-            return (
-              <motion.div
-                key={item.id}
-                initial={{ y: -40, opacity: 0, rotate: r, scale: 0.9 }}
-                animate={{ y: 0, opacity: 1, rotate: r, scale: 1 }}
-                exit={{ y: 120, opacity: 0, rotate: r + 22, scale: 0.85 }}
-                transition={{ type: "spring", bounce: 0.28, duration: 0.5 }}
-                className="group absolute"
-                style={{
-                  left: pos.x,
-                  top: pos.y,
-                  zIndex: z + 2,
-                  cursor: draggingId === item.id ? "grabbing" : "grab",
-                  userSelect: "none",
-                  WebkitUserSelect: "none",
-                  touchAction: "none",
-                }}
-                onPointerDown={e => onPointerDown(e, item)}
-                onPointerMove={e => onPointerMove(e, item.id)}
-                onPointerUp={e => onPointerUp(e, item.id)}
-                onPointerCancel={e => onPointerUp(e, item.id)}
-                onClick={() => bringToFront(item.id)}
-                onDoubleClick={item.type === "image" ? () => setLightbox(item.content) : undefined}
-              >
-                {/* Delete pin */}
-                <button
-                  className="absolute -top-2.5 -right-2.5 z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ background: "#E63946", color: "white" }}
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={e => { e.stopPropagation(); deleteVisionItem(item.id); }}
-                  title="Remove"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-
-                {/* Label edit button (non-clipping only) */}
-                {item.cardStyle !== "clipping" && (
-                  <button
-                    className="absolute -top-2.5 -left-2.5 z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ background: "#2C2416", color: "#FFE066", border: "1px solid rgba(255,224,102,0.4)" }}
-                    onPointerDown={e => e.stopPropagation()}
-                    onClick={e => { e.stopPropagation(); setEditingId(item.id); setEditLabel(item.label ?? ""); }}
-                  >
-                    <Pencil className="w-2.5 h-2.5" />
-                  </button>
-                )}
-
-                {item.type === "image" ? (
-                  <PolaroidCard item={item} />
-                ) : item.cardStyle === "sticky" ? (
-                  <StickyCard item={item} rot={r} />
-                ) : (
-                  <ClippingCard item={item} rot={r} />
-                )}
-              </motion.div>
-            );
-          })}
+          {visionBoard.map(item => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.22 }}
+              className="group relative mb-3 rounded-2xl overflow-hidden"
+              style={{ breakInside: "avoid" }}
+            >
+              {item.type === "image"
+                ? <ImageCard
+                    item={item}
+                    onDelete={() => deleteVisionItem(item.id)}
+                    onZoom={() => setZoom(item.content)}
+                    onEditNote={() => { setNoteId(item.id); setNoteText(item.label ?? ""); }}
+                    isEditingNote={noteId === item.id}
+                    noteText={noteText}
+                    onNoteChange={setNoteText}
+                    onNoteSave={() => saveNote(item.id)}
+                    onNoteCancel={() => setNoteId(null)}
+                  />
+                : <QuoteCard item={item} onDelete={() => deleteVisionItem(item.id)} />
+              }
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
 
-      {/* FAB */}
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse items-center gap-3">
+      {/* ── FAB ── */}
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse items-end gap-2.5">
         <AnimatePresence>
           {fabOpen && (
             <>
-              <FabItem
+              <motion.button
                 key="img"
-                label="Image"
-                icon={<ImagePlus className="w-4 h-4" />}
-                color="#8B5E3C"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 16 }}
+                transition={{ delay: 0, duration: 0.15 }}
                 onClick={() => { fileRef.current?.click(); setFabOpen(false); }}
-                delay={0}
-              />
-              <FabItem
-                key="clip"
-                label="Magazine clip"
-                icon={<Quote className="w-4 h-4" />}
-                color="#1a1a2e"
-                onClick={() => { setAddMode("quote"); setFabOpen(false); }}
-                delay={0.06}
-              />
-              <FabItem
-                key="sticky"
-                label="Sticky note"
-                icon={<Pencil className="w-4 h-4" />}
-                color="#A0793B"
-                onClick={() => { setAddMode("sticky"); setFabOpen(false); }}
-                delay={0.12}
-              />
+                className="flex items-center gap-2.5 pl-3 pr-4 h-10 rounded-full text-white text-sm font-semibold shadow-xl"
+                style={{ background: "#3d3d3d", whiteSpace: "nowrap" }}
+              >
+                <ImagePlus className="w-4 h-4" /> Add image
+              </motion.button>
+              <motion.button
+                key="quote"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 16 }}
+                transition={{ delay: 0.07, duration: 0.15 }}
+                onClick={() => { setQuoteOpen(true); setFabOpen(false); }}
+                className="flex items-center gap-2.5 pl-3 pr-4 h-10 rounded-full text-sm font-semibold shadow-xl"
+                style={{ background: "#FFE066", color: "#1a1a1a", whiteSpace: "nowrap" }}
+              >
+                <Quote className="w-4 h-4" /> Add quote
+              </motion.button>
             </>
           )}
         </AnimatePresence>
 
         <motion.button
           onClick={() => setFabOpen(v => !v)}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.95 }}
-          className="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl"
-          style={{ background: "#8B5E3C", color: "white", boxShadow: "0 4px 24px rgba(0,0,0,0.5)" }}
+          whileTap={{ scale: 0.92 }}
+          className="w-12 h-12 rounded-full flex items-center justify-center shadow-2xl"
+          style={{ background: "#e60023", color: "white" }} /* pinterest red */
         >
-          <motion.div animate={{ rotate: fabOpen ? 45 : 0 }} transition={{ duration: 0.2 }}>
-            <Plus className="w-6 h-6" />
+          <motion.div animate={{ rotate: fabOpen ? 45 : 0 }} transition={{ duration: 0.18 }}>
+            <Plus className="w-5 h-5" />
           </motion.div>
         </motion.button>
       </div>
 
-      {/* Label edit overlay */}
-      <AnimatePresence>
-        {editingId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-            onClick={() => setEditingId(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, y: 12 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.92, y: 12 }}
-              onClick={e => e.stopPropagation()}
-              className="rounded-2xl p-6 w-80 shadow-2xl"
-              style={{ background: "#1e1610", border: "1px solid rgba(255,224,102,0.2)" }}
-            >
-              <p className="font-mono text-[10px] uppercase tracking-widest mb-3" style={{ color: "rgba(255,224,102,0.5)" }}>
-                Edit label / caption
-              </p>
-              <input
-                autoFocus
-                value={editLabel}
-                onChange={e => setEditLabel(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") saveLabel(editingId); if (e.key === "Escape") setEditingId(null); }}
-                placeholder="Caption or source…"
-                className="w-full bg-transparent outline-none text-sm pb-1 border-b"
-                style={{ color: "#f5e6c8", borderColor: "rgba(255,224,102,0.3)" }}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  style={{ color: "rgba(245,230,200,0.5)", background: "rgba(255,255,255,0.06)" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => saveLabel(editingId)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  style={{ background: "#8B5E3C", color: "white" }}
-                >
-                  <Check className="w-3 h-3" /> Save
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Add form */}
-      <AddForm
-        mode={addMode}
-        text={formText} onText={setFormText}
-        label={formLabel} onLabel={setFormLabel}
-        color={formColor} onColor={setFormColor}
-        onSubmit={handleAddText}
-        onClose={() => setAddMode(null)}
+      {/* ── Add quote modal ── */}
+      <QuoteModal
+        open={quoteOpen}
+        text={quoteText} onText={setQuoteText}
+        theme={quoteTheme} onTheme={setQuoteTheme}
+        onAdd={addQuote}
+        onClose={() => setQuoteOpen(false)}
       />
 
-      {/* Lightbox */}
+      {/* ── Lightbox ── */}
       <AnimatePresence>
-        {lightbox && (
+        {zoom && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[400] flex items-center justify-center p-8"
-            style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(8px)" }}
-            onClick={() => setLightbox(null)}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-8"
+            style={{ background: "rgba(0,0,0,0.92)" }}
+            onClick={() => setZoom(null)}
           >
             <motion.img
-              src={lightbox}
-              initial={{ scale: 0.85 }}
+              src={zoom}
+              initial={{ scale: 0.88 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.85 }}
-              className="max-w-full max-h-full rounded-lg"
-              style={{ boxShadow: "0 8px 60px rgba(0,0,0,0.8)" }}
+              exit={{ scale: 0.88 }}
+              className="max-w-full max-h-full rounded-2xl"
+              style={{ boxShadow: "0 0 80px rgba(0,0,0,0.9)" }}
               draggable={false}
             />
+            <button
+              className="absolute top-5 right-5 w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.12)", color: "white" }}
+              onClick={() => setZoom(null)}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
     </div>
   );
 }
 
-/* ── Card sub-components ── */
-
-function PolaroidCard({ item }: { item: VisionItem }) {
-  const r = stableRot(item.id);
+/* ─── Image card ─────────────────────────────────────────────────── */
+function ImageCard({
+  item, onDelete, onZoom, onEditNote,
+  isEditingNote, noteText, onNoteChange, onNoteSave, onNoteCancel,
+}: {
+  item: VisionItem;
+  onDelete: () => void;
+  onZoom: () => void;
+  onEditNote: () => void;
+  isEditingNote: boolean;
+  noteText: string;
+  onNoteChange: (v: string) => void;
+  onNoteSave: () => void;
+  onNoteCancel: () => void;
+}) {
   return (
-    <div
-      style={{
-        background: "white",
-        padding: "8px 8px 28px 8px",
-        width: 200,
-        boxShadow: "4px 6px 20px rgba(0,0,0,0.6), 1px 2px 6px rgba(0,0,0,0.3)",
-        position: "relative",
-      }}
-    >
-      <Tape rot={r} />
-      <img src={item.content} alt={item.label ?? ""} className="w-full h-auto block" draggable={false} />
-      <p
-        className="text-center mt-1.5 text-gray-500 italic truncate"
-        style={{ fontSize: 11, fontFamily: "'Segoe UI', Georgia, cursive", minHeight: 14 }}
-      >
-        {item.label ?? ""}
-      </p>
+    <div className="relative select-none">
+      {/* Image */}
+      <img
+        src={item.content}
+        alt=""
+        className="w-full h-auto block"
+        draggable={false}
+        onDoubleClick={onZoom}
+      />
+
+      {/* Note overlay — always visible if note exists, editable on demand */}
+      {isEditingNote ? (
+        <div
+          className="absolute bottom-0 left-0 right-0 p-3"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)" }}
+        >
+          <textarea
+            autoFocus
+            value={noteText}
+            onChange={e => onNoteChange(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onNoteSave(); } if (e.key === "Escape") onNoteCancel(); }}
+            placeholder="Add a note on this image…"
+            rows={2}
+            className="w-full bg-transparent text-white text-sm placeholder:text-white/40 outline-none resize-none leading-snug"
+          />
+          <div className="flex gap-2 mt-1.5">
+            <button
+              onClick={onNoteSave}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold"
+              style={{ background: "rgba(255,255,255,0.18)", color: "white" }}
+            >
+              <Check className="w-3 h-3" /> Save
+            </button>
+            <button
+              onClick={onNoteCancel}
+              className="px-2.5 py-1 rounded-lg text-xs"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : item.label ? (
+        <div
+          className="absolute bottom-0 left-0 right-0 px-3 py-3"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)" }}
+        >
+          <p className="text-white text-sm leading-snug">{item.label}</p>
+        </div>
+      ) : null}
+
+      {/* Hover actions */}
+      <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onZoom}
+          className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+          style={{ background: "rgba(0,0,0,0.5)", color: "white" }}
+          title="Zoom"
+        >
+          <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onEditNote}
+          className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+          style={{ background: "rgba(0,0,0,0.5)", color: "white" }}
+          title="Add note"
+        >
+          <PenLine className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+          style={{ background: "rgba(230,0,35,0.7)", color: "white" }}
+          title="Remove"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
 
-function StickyCard({ item, rot: r }: { item: VisionItem; rot: number }) {
-  return (
-    <div
-      style={{
-        background: item.color ?? "#FFE066",
-        padding: "16px 14px 14px",
-        width: 180,
-        minHeight: 140,
-        boxShadow: "2px 2px 0 rgba(0,0,0,0.12), 5px 10px 20px rgba(0,0,0,0.35), inset -4px -4px 10px rgba(0,0,0,0.06)",
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <Tape rot={r} />
-      <p
-        style={{
-          fontFamily: "Georgia, serif",
-          fontSize: 14,
-          lineHeight: 1.55,
-          color: "rgba(0,0,0,0.78)",
-          flex: 1,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
-      >
-        {item.content}
-      </p>
-      {item.label && (
-        <p style={{ marginTop: 8, fontSize: 10, fontStyle: "italic", opacity: 0.55, fontFamily: "Georgia, serif" }}>
-          — {item.label}
-        </p>
-      )}
-    </div>
-  );
-}
+/* ─── Quote card ─────────────────────────────────────────────────── */
+function QuoteCard({ item, onDelete }: { item: VisionItem; onDelete: () => void }) {
+  let theme = QUOTE_THEMES[0];
+  try { if (item.color) theme = JSON.parse(item.color); } catch { /* use default */ }
 
-function ClippingCard({ item, rot: r }: { item: VisionItem; rot: number }) {
   return (
     <div
-      style={{
-        background: "white",
-        padding: "14px 16px",
-        maxWidth: 240,
-        boxShadow: "4px 6px 20px rgba(0,0,0,0.55)",
-        position: "relative",
-      }}
+      className="relative px-6 py-8 min-h-[140px] flex flex-col justify-center"
+      style={{ background: theme.bg }}
     >
-      <Tape rot={r} />
       <p
         style={{
           fontFamily: "Georgia, 'Times New Roman', serif",
-          fontWeight: 900,
-          fontSize: item.content.length > 40 ? 20 : 28,
-          lineHeight: 1.05,
-          letterSpacing: "-0.02em",
-          textTransform: "uppercase",
-          color: item.color ?? "#1a1a1a",
-          wordBreak: "break-word",
-          whiteSpace: "pre-wrap",
+          fontSize: item.content.length > 60 ? 18 : item.content.length > 30 ? 22 : 28,
+          fontWeight: 700,
+          lineHeight: 1.3,
+          color: theme.text,
+          letterSpacing: "-0.01em",
         }}
       >
         {item.content}
       </p>
       {item.label && (
-        <p style={{ marginTop: 6, fontSize: 10, fontStyle: "italic", opacity: 0.45, fontFamily: "Georgia, serif" }}>
+        <p
+          className="mt-3 text-xs italic"
+          style={{ color: theme.accent, opacity: 0.7, fontFamily: "Georgia, serif" }}
+        >
           — {item.label}
         </p>
       )}
+
+      {/* Accent line */}
+      <div
+        className="absolute left-0 top-6 bottom-6 w-1 rounded-r-full"
+        style={{ background: theme.accent, opacity: 0.6 }}
+      />
+
+      <button
+        onClick={onDelete}
+        className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.7)" }}
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
 
-/* ── FAB sub-item ── */
-
-function FabItem({
-  label, icon, color, onClick, delay,
+/* ─── Add Quote modal ────────────────────────────────────────────── */
+function QuoteModal({
+  open, text, onText, theme, onTheme, onAdd, onClose,
 }: {
-  label: string; icon: React.ReactNode; color: string; onClick: () => void; delay: number;
+  open: boolean; text: string; onText: (v: string) => void;
+  theme: number; onTheme: (i: number) => void;
+  onAdd: () => void; onClose: () => void;
 }) {
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 16, scale: 0.8 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 16, scale: 0.8 }}
-      transition={{ delay, duration: 0.18 }}
-      onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className="flex items-center gap-2.5 pl-3 pr-4 py-2 rounded-full shadow-xl text-white text-xs font-semibold"
-      style={{ background: color, boxShadow: "0 4px 16px rgba(0,0,0,0.45)", whiteSpace: "nowrap" }}
-    >
-      {icon}
-      {label}
-    </motion.button>
-  );
-}
+  const t = QUOTE_THEMES[theme];
 
-/* ── Add form modal ── */
-
-function AddForm({
-  mode, text, onText, label, onLabel, color, onColor, onSubmit, onClose,
-}: {
-  mode: AddMode;
-  text: string; onText: (v: string) => void;
-  label: string; onLabel: (v: string) => void;
-  color: string; onColor: (v: string) => void;
-  onSubmit: () => void;
-  onClose: () => void;
-}) {
   return (
     <AnimatePresence>
-      {mode && mode !== "image" && (
+      {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)" }}
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, y: 20 }}
+            initial={{ scale: 0.93, y: 16 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 20 }}
-            transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+            exit={{ scale: 0.93, y: 16 }}
+            transition={{ type: "spring", bounce: 0.18, duration: 0.3 }}
+            className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
             onClick={e => e.stopPropagation()}
-            className="rounded-2xl p-6 w-96 shadow-2xl"
-            style={{ background: "#1e1610", border: "1px solid rgba(255,224,102,0.18)" }}
           >
-            {/* Preview of the card style */}
-            <div className="mb-5 flex justify-center">
-              {mode === "sticky" ? (
-                <div
-                  style={{
-                    background: color,
-                    padding: "12px 14px",
-                    width: 140,
-                    minHeight: 100,
-                    boxShadow: "3px 4px 12px rgba(0,0,0,0.35)",
-                    transform: "rotate(-2deg)",
-                    fontFamily: "Georgia, serif",
-                    fontSize: 13,
-                    color: "rgba(0,0,0,0.75)",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {text || "your note…"}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    background: "white",
-                    padding: "10px 14px",
-                    maxWidth: 180,
-                    boxShadow: "4px 5px 16px rgba(0,0,0,0.4)",
-                    transform: "rotate(1.5deg)",
-                    fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontWeight: 900,
-                    fontSize: text.length > 30 ? 16 : 22,
-                    lineHeight: 1.1,
-                    letterSpacing: "-0.02em",
-                    textTransform: "uppercase",
-                    wordBreak: "break-word",
-                    color: "#1a1a1a",
-                  }}
-                >
-                  {text || "YOUR QUOTE"}
-                </div>
-              )}
+            {/* Live preview */}
+            <div
+              className="relative px-8 py-10 min-h-[140px] flex flex-col justify-center transition-colors duration-300"
+              style={{ background: t.bg }}
+            >
+              <div
+                className="absolute left-0 top-6 bottom-6 w-1 rounded-r-full"
+                style={{ background: t.accent, opacity: 0.6 }}
+              />
+              <p
+                style={{
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  fontSize: text.length > 60 ? 18 : text.length > 30 ? 22 : 28,
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  color: t.text,
+                  letterSpacing: "-0.01em",
+                  minHeight: 36,
+                }}
+              >
+                {text || <span style={{ opacity: 0.25 }}>your quote here…</span>}
+              </p>
             </div>
 
-            <p className="font-mono text-[10px] uppercase tracking-widest mb-3" style={{ color: "rgba(255,224,102,0.5)" }}>
-              {mode === "sticky" ? "New sticky note" : "New magazine clipping"}
-            </p>
+            {/* Form */}
+            <div className="p-5" style={{ background: "#1e1e1e" }}>
+              <textarea
+                autoFocus
+                value={text}
+                onChange={e => onText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onAdd(); }}
+                placeholder="Write your quote or affirmation…"
+                rows={3}
+                className="w-full bg-transparent text-sm text-white placeholder:text-white/25 outline-none resize-none leading-relaxed border-b pb-1"
+                style={{ borderColor: "rgba(255,255,255,0.1)" }}
+              />
 
-            <textarea
-              autoFocus
-              value={text}
-              onChange={e => onText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSubmit(); }}
-              placeholder={mode === "sticky" ? "Write your affirmation…" : "Write your quote or goal…"}
-              rows={3}
-              className="w-full bg-transparent text-sm outline-none resize-none leading-relaxed border-b pb-1"
-              style={{ color: "#f5e6c8", borderColor: "rgba(255,224,102,0.25)" }}
-            />
-
-            <input
-              value={label}
-              onChange={e => onLabel(e.target.value)}
-              placeholder="Source / author (optional)"
-              className="w-full bg-transparent text-xs outline-none mt-3 border-b pb-1"
-              style={{ color: "rgba(245,230,200,0.55)", borderColor: "rgba(255,224,102,0.15)" }}
-            />
-
-            {/* Color picker for sticky */}
-            {mode === "sticky" && (
-              <div className="flex items-center gap-2 mt-4">
-                <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: "rgba(255,224,102,0.4)" }}>Colour</span>
-                <div className="flex gap-1.5">
-                  {STICKY_COLORS.map(c => (
+              {/* Theme picker */}
+              <div className="flex items-center gap-3 mt-4">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-white/30">Theme</span>
+                <div className="flex gap-2">
+                  {QUOTE_THEMES.map((th, i) => (
                     <button
-                      key={c}
-                      onClick={() => onColor(c)}
+                      key={i}
+                      onClick={() => onTheme(i)}
                       style={{
-                        width: 18, height: 18,
-                        background: c,
+                        width: 22, height: 22,
+                        background: th.bg,
+                        border: theme === i ? `2px solid ${th.accent}` : "2px solid transparent",
                         borderRadius: "50%",
-                        border: color === c ? "2px solid #FFE066" : "2px solid transparent",
-                        transform: color === c ? "scale(1.2)" : "scale(1)",
+                        boxShadow: theme === i ? `0 0 0 2px rgba(255,255,255,0.15)` : "none",
+                        transform: theme === i ? "scale(1.25)" : "scale(1)",
                         transition: "transform 0.15s",
                       }}
                     />
                   ))}
                 </div>
               </div>
-            )}
 
-            <div className="flex justify-end gap-2 mt-5">
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ color: "rgba(245,230,200,0.45)", background: "rgba(255,255,255,0.06)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onSubmit}
-                disabled={!text.trim()}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                style={{ background: "#8B5E3C", color: "white" }}
-              >
-                Pin it →
-              </button>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold"
+                  style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.06)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onAdd}
+                  disabled={!text.trim()}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-30"
+                  style={{ background: "#e60023", color: "white" }}
+                >
+                  Add to board
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
