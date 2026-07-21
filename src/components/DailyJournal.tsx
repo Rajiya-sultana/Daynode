@@ -42,17 +42,31 @@ export default function DailyJournal() {
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
-    // Preserve line breaks, then linkify URLs per line
+
+    const linkify = (s: string) =>
+      s.replace(
+        /(https?:\/\/[^\s]+)/g,
+        `<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">$1</a>`,
+      );
+
+    // Double (or more) newlines → separate <p> paragraphs
+    // Single newlines within a paragraph → <br>
     const html = text
-      .split("\n")
-      .map((line) =>
-        line.replace(
-          /(https?:\/\/[^\s]+)/g,
-          `<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">$1</a>`,
-        ),
-      )
-      .join("<br>");
-    document.execCommand("insertHTML", false, html);
+      .split(/\n{2,}/)
+      .map((para) => `<p>${para.split(/\n/).map(linkify).join("<br>")}</p>`)
+      .join("");
+
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const fragment = document.createRange().createContextualFragment(html);
+    range.insertNode(fragment);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    scheduleSave();
   }
 
   const storedHtml = journals[selectedDate] ?? "";
