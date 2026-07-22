@@ -76,7 +76,9 @@ export interface VisionItem {
   content: string;
   label?: string;
   color?: string;
-  cardStyle?: "polaroid" | "sticky" | "clipping";
+  cardStyle?: "polaroid" | "sticky" | "clipping" | "word";
+  category?: string;
+  achieved?: boolean;
   x?: number;
   y?: number;
   zIndex?: number;
