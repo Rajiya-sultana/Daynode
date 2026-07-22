@@ -2,8 +2,9 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ImagePlus, Quote, ZoomIn, PenLine, Check, Type } from "lucide-react";
+import { X, Plus, ImagePlus, Quote, ZoomIn, PenLine, Check, Type, LayoutTemplate } from "lucide-react";
 import { useTaskStore, type VisionItem } from "@/store/taskStore";
+import VisionTemplateEditor, { TemplateCard } from "@/components/VisionTemplateEditor";
 
 /* ─── Life categories ────────────────────────────────────────────── */
 export const CATEGORIES = [
@@ -39,8 +40,10 @@ export default function VisionBoard() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   /* FAB / add */
-  const [fabOpen,    setFabOpen]    = useState(false);
-  const [addMode,    setAddMode]    = useState<AddMode>(null);
+  const [fabOpen,        setFabOpen]        = useState(false);
+  const [templateOpen,   setTemplateOpen]   = useState(false);
+  const [editTemplateId, setEditTemplateId] = useState<string | null>(null);
+  const [addMode,        setAddMode]        = useState<AddMode>(null);
   const [formText,   setFormText]   = useState("");
   const [formTheme,  setFormTheme]  = useState(0);
   const [formCat,    setFormCat]    = useState<string | undefined>();
@@ -176,7 +179,9 @@ export default function VisionBoard() {
                 className="group relative mb-3 rounded-2xl overflow-hidden"
                 style={{ breakInside: "avoid" }}
               >
-                {item.cardStyle === "word"
+                {item.cardStyle === "template"
+                  ? <TemplateCard item={item} onDelete={() => deleteVisionItem(item.id)} onEdit={() => setEditTemplateId(item.id)} />
+                  : item.cardStyle === "word"
                   ? <WordCard  item={item} onDelete={() => deleteVisionItem(item.id)} onToggleAchieved={() => toggleAchieved(item)} onCategoryPick={() => { setCatPickId(item.id); }} />
                   : item.type === "image"
                   ? <ImageCard
@@ -205,9 +210,10 @@ export default function VisionBoard() {
         <AnimatePresence>
           {fabOpen && (
             <>
-              <FabItem key="img"   label="Add image"  color="#2a2a2a"   textColor="white"    icon={<ImagePlus className="w-4 h-4" />} delay={0}    onClick={() => { fileRef.current?.click(); setFabOpen(false); }} />
-              <FabItem key="quote" label="Add quote"  color="#FFE066"   textColor="#141414"  icon={<Quote     className="w-4 h-4" />} delay={0.07} onClick={() => { setAddMode("quote"); setFabOpen(false); }} />
-              <FabItem key="word"  label="Power word" color="#a8f0b4"   textColor="#0d1f0d"  icon={<Type      className="w-4 h-4" />} delay={0.14} onClick={() => { setAddMode("word");  setFabOpen(false); }} />
+              <FabItem key="img"      label="Add image"  color="#2a2a2a"   textColor="white"    icon={<ImagePlus       className="w-4 h-4" />} delay={0}    onClick={() => { fileRef.current?.click(); setFabOpen(false); }} />
+              <FabItem key="quote"    label="Add quote"  color="#FFE066"   textColor="#141414"  icon={<Quote           className="w-4 h-4" />} delay={0.07} onClick={() => { setAddMode("quote"); setFabOpen(false); }} />
+              <FabItem key="word"     label="Power word" color="#a8f0b4"   textColor="#0d1f0d"  icon={<Type            className="w-4 h-4" />} delay={0.14} onClick={() => { setAddMode("word");  setFabOpen(false); }} />
+              <FabItem key="template" label="Template"   color="#c084fc"   textColor="#1a0533"  icon={<LayoutTemplate  className="w-4 h-4" />} delay={0.21} onClick={() => { setTemplateOpen(true); setFabOpen(false); }} />
             </>
           )}
         </AnimatePresence>
@@ -222,6 +228,20 @@ export default function VisionBoard() {
           </motion.div>
         </motion.button>
       </div>
+
+      {/* ── Template editor ── */}
+      {(templateOpen || editTemplateId !== null) && (
+        <VisionTemplateEditor
+          onSave={item => {
+            if (editTemplateId) {
+              updateVisionItem(editTemplateId, { content: item.content });
+            } else {
+              addVisionItem(item);
+            }
+          }}
+          onClose={() => { setTemplateOpen(false); setEditTemplateId(null); }}
+        />
+      )}
 
       {/* ── Add text/word modal ── */}
       <TextModal mode={addMode} text={formText} onText={setFormText} theme={formTheme} onTheme={setFormTheme} cat={formCat} onCat={setFormCat} onAdd={handleAddText} onClose={() => setAddMode(null)} />
