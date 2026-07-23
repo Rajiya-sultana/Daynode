@@ -2,9 +2,10 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, ImagePlus, Quote, ZoomIn, PenLine, Check, Type, LayoutTemplate } from "lucide-react";
+import { X, Plus, ImagePlus, Quote, ZoomIn, PenLine, Check, Type, LayoutTemplate, Layers } from "lucide-react";
 import { useTaskStore, type VisionItem } from "@/store/taskStore";
-import VisionTemplateEditor, { TemplateCard } from "@/components/VisionTemplateEditor";
+import VisionTemplateEditor, { TemplateCard, type TextOverlay } from "@/components/VisionTemplateEditor";
+import VisionCanvasEditor, { CanvasCard, type CanvasItem } from "@/components/VisionCanvasEditor";
 
 /* ─── Life categories ────────────────────────────────────────────── */
 export const CATEGORIES = [
@@ -43,6 +44,8 @@ export default function VisionBoard() {
   const [fabOpen,        setFabOpen]        = useState(false);
   const [templateOpen,   setTemplateOpen]   = useState(false);
   const [editTemplateId, setEditTemplateId] = useState<string | null>(null);
+  const [canvasOpen,     setCanvasOpen]     = useState(false);
+  const [editCanvasId,   setEditCanvasId]   = useState<string | null>(null);
   const [addMode,        setAddMode]        = useState<AddMode>(null);
   const [formText,   setFormText]   = useState("");
   const [formTheme,  setFormTheme]  = useState(0);
@@ -179,7 +182,9 @@ export default function VisionBoard() {
                 className="group relative mb-3 rounded-2xl overflow-hidden"
                 style={{ breakInside: "avoid" }}
               >
-                {item.cardStyle === "template"
+                {item.cardStyle === "canvas"
+                  ? <CanvasCard item={item} onDelete={() => deleteVisionItem(item.id)} onEdit={() => { setEditCanvasId(item.id); }} />
+                  : item.cardStyle === "template"
                   ? <TemplateCard item={item} onDelete={() => deleteVisionItem(item.id)} onEdit={() => setEditTemplateId(item.id)} />
                   : item.cardStyle === "word"
                   ? <WordCard  item={item} onDelete={() => deleteVisionItem(item.id)} onToggleAchieved={() => toggleAchieved(item)} onCategoryPick={() => { setCatPickId(item.id); }} />
@@ -218,10 +223,11 @@ export default function VisionBoard() {
         <AnimatePresence>
           {fabOpen && (
             <>
-              <FabItem key="img"      label="Add image"  color="#2a2a2a"   textColor="white"    icon={<ImagePlus       className="w-4 h-4" />} delay={0}    onClick={() => { fileRef.current?.click(); setFabOpen(false); }} />
-              <FabItem key="quote"    label="Add quote"  color="#FFE066"   textColor="#141414"  icon={<Quote           className="w-4 h-4" />} delay={0.07} onClick={() => { setAddMode("quote"); setFabOpen(false); }} />
-              <FabItem key="word"     label="Power word" color="#a8f0b4"   textColor="#0d1f0d"  icon={<Type            className="w-4 h-4" />} delay={0.14} onClick={() => { setAddMode("word");  setFabOpen(false); }} />
-              <FabItem key="template" label="Template"   color="#c084fc"   textColor="#1a0533"  icon={<LayoutTemplate  className="w-4 h-4" />} delay={0.21} onClick={() => { setTemplateOpen(true); setFabOpen(false); }} />
+              <FabItem key="img"      label="Add image"   color="#2a2a2a"  textColor="white"    icon={<ImagePlus       className="w-4 h-4" />} delay={0}    onClick={() => { fileRef.current?.click(); setFabOpen(false); }} />
+              <FabItem key="quote"    label="Add quote"   color="#FFE066"  textColor="#141414"  icon={<Quote           className="w-4 h-4" />} delay={0.07} onClick={() => { setAddMode("quote"); setFabOpen(false); }} />
+              <FabItem key="word"     label="Power word"  color="#a8f0b4"  textColor="#0d1f0d"  icon={<Type            className="w-4 h-4" />} delay={0.14} onClick={() => { setAddMode("word");  setFabOpen(false); }} />
+              <FabItem key="template" label="Template"    color="#c084fc"  textColor="#1a0533"  icon={<LayoutTemplate  className="w-4 h-4" />} delay={0.21} onClick={() => { setTemplateOpen(true); setFabOpen(false); }} />
+              <FabItem key="canvas"   label="Free canvas" color="#38bdf8"  textColor="#0c1a2e"  icon={<Layers          className="w-4 h-4" />} delay={0.28} onClick={() => { setCanvasOpen(true);   setFabOpen(false); }} />
             </>
           )}
         </AnimatePresence>
@@ -241,18 +247,21 @@ export default function VisionBoard() {
       {(templateOpen || editTemplateId !== null) && (() => {
         let initTemplateId: string | undefined;
         let initFilled: Record<string, { type: "image" | "text" | "word"; content: string }> | undefined;
+        let initOverlays: TextOverlay[] | undefined;
         if (editTemplateId) {
           const editItem = visionBoard.find(i => i.id === editTemplateId);
           try {
             const parsed = JSON.parse(editItem?.content ?? "{}");
             initTemplateId = parsed.templateId;
             initFilled = parsed.filled;
+            initOverlays = parsed.overlays;
           } catch { /* ignore */ }
         }
         return (
           <VisionTemplateEditor
             initialTemplateId={initTemplateId}
             initialFilled={initFilled}
+            initialOverlays={initOverlays}
             onSave={item => {
               if (editTemplateId) {
                 updateVisionItem(editTemplateId, { content: item.content });
@@ -261,6 +270,34 @@ export default function VisionBoard() {
               }
             }}
             onClose={() => { setTemplateOpen(false); setEditTemplateId(null); }}
+          />
+        );
+      })()}
+
+      {/* ── Canvas editor ── */}
+      {(canvasOpen || editCanvasId !== null) && (() => {
+        let initItems: CanvasItem[] | undefined;
+        let initBg: string | undefined;
+        if (editCanvasId) {
+          const editItem = visionBoard.find(i => i.id === editCanvasId);
+          try {
+            const parsed = JSON.parse(editItem?.content ?? "{}");
+            initItems = parsed.items;
+            initBg = parsed.bg;
+          } catch { /* ignore */ }
+        }
+        return (
+          <VisionCanvasEditor
+            initialItems={initItems}
+            initialBg={initBg}
+            onSave={item => {
+              if (editCanvasId) {
+                updateVisionItem(editCanvasId, { content: item.content, color: item.color });
+              } else {
+                addVisionItem(item);
+              }
+            }}
+            onClose={() => { setCanvasOpen(false); setEditCanvasId(null); }}
           />
         );
       })()}
