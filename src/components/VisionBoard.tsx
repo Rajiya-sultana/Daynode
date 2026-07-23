@@ -205,6 +205,14 @@ export default function VisionBoard() {
         </div>
       )}
 
+      {/* ── FAB backdrop (outside-click dismiss) ── */}
+      {fabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setFabOpen(false)}
+        />
+      )}
+
       {/* ── FAB ── */}
       <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse items-end gap-2.5">
         <AnimatePresence>
@@ -230,18 +238,32 @@ export default function VisionBoard() {
       </div>
 
       {/* ── Template editor ── */}
-      {(templateOpen || editTemplateId !== null) && (
-        <VisionTemplateEditor
-          onSave={item => {
-            if (editTemplateId) {
-              updateVisionItem(editTemplateId, { content: item.content });
-            } else {
-              addVisionItem(item);
-            }
-          }}
-          onClose={() => { setTemplateOpen(false); setEditTemplateId(null); }}
-        />
-      )}
+      {(templateOpen || editTemplateId !== null) && (() => {
+        let initTemplateId: string | undefined;
+        let initFilled: Record<string, { type: "image" | "text" | "word"; content: string }> | undefined;
+        if (editTemplateId) {
+          const editItem = visionBoard.find(i => i.id === editTemplateId);
+          try {
+            const parsed = JSON.parse(editItem?.content ?? "{}");
+            initTemplateId = parsed.templateId;
+            initFilled = parsed.filled;
+          } catch { /* ignore */ }
+        }
+        return (
+          <VisionTemplateEditor
+            initialTemplateId={initTemplateId}
+            initialFilled={initFilled}
+            onSave={item => {
+              if (editTemplateId) {
+                updateVisionItem(editTemplateId, { content: item.content });
+              } else {
+                addVisionItem(item);
+              }
+            }}
+            onClose={() => { setTemplateOpen(false); setEditTemplateId(null); }}
+          />
+        );
+      })()}
 
       {/* ── Add text/word modal ── */}
       <TextModal mode={addMode} text={formText} onText={setFormText} theme={formTheme} onTheme={setFormTheme} cat={formCat} onCat={setFormCat} onAdd={handleAddText} onClose={() => setAddMode(null)} />

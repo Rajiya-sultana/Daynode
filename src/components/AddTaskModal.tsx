@@ -72,8 +72,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSave() {
     if (!title.trim()) return;
     const estMins = estimatedMinutes === "" ? undefined : Number(estimatedMinutes);
     if (isEditing && task) {
@@ -98,6 +97,11 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
     }
     reset();
     onClose();
+  }
+
+  function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    handleSave();
   }
 
   function reset() {
@@ -140,7 +144,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 40 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            className="fixed top-0 right-0 bottom-0 w-[420px] bg-paper border-l border-binding/60 shadow-xl z-50 flex flex-col"
+            className="fixed top-0 right-0 bottom-0 w-full sm:w-[420px] bg-paper border-l border-binding/60 shadow-xl z-50 flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-binding/40">
@@ -162,7 +166,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
 
             {/* Form */}
             <form
-              onSubmit={handleSubmit}
+              onSubmit={handleFormSubmit}
               className="flex-1 flex flex-col gap-5 px-6 py-5 overflow-y-auto"
             >
               {/* ── Title field ── */}
@@ -329,12 +333,24 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
                 <label className="font-mono text-[10px] text-ink-faint uppercase tracking-widest block mb-1.5">
                   deadline
                 </label>
-                <input
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full bg-transparent border-0 border-b border-ruled focus:border-accent outline-none font-mono text-sm text-ink py-2 transition-colors"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="flex-1 bg-transparent border-0 border-b border-ruled focus:border-accent outline-none font-mono text-sm text-ink py-2 transition-colors"
+                  />
+                  {deadline && (
+                    <button
+                      type="button"
+                      onClick={() => setDeadline("")}
+                      className="p-1 rounded-lg hover:bg-binding/40 text-ink-faint hover:text-ink transition-colors flex-shrink-0"
+                      title="Clear deadline"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* ── Estimate ── */}
@@ -438,7 +454,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                onClick={handleSave}
                 disabled={!title.trim()}
                 className="flex-1 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >

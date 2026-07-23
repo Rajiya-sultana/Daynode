@@ -49,6 +49,8 @@ export default function InboxPage() {
               <p className="font-semibold text-ink text-sm mt-0.5">
                 {inboxCount === 0
                   ? "Inbox is empty"
+                  : inboxPending === 0
+                  ? "All tasks done or scheduled"
                   : `${inboxPending} task${inboxPending !== 1 ? "s" : ""} to schedule`}
               </p>
             </div>

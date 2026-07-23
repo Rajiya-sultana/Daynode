@@ -17,7 +17,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border z-30">
-      <div className="max-w-lg mx-auto flex items-center justify-around py-2">
+      <div className="grid grid-cols-5 w-full py-1">
         {navItems.map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
@@ -25,7 +25,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-xl transition-colors ${
+              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-colors ${
                 active ? "text-lavender" : "text-muted hover:text-foreground"
               }`}
             >

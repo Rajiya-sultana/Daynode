@@ -105,6 +105,7 @@ export default function TaskCard({ task, lineNumber, onEdit, onSchedule }: TaskC
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => {
           setHovered(false);
+          setScheduleOpen(false);
           if (confirmDelete) {
             clearTimeout(confirmTimer.current);
             setConfirmDelete(false);

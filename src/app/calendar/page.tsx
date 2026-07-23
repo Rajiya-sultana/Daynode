@@ -29,10 +29,14 @@ export default function CalendarPage() {
 
   const weekDays = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
 
-  // Generate recurring tasks for each day in the visible week
+  // Generate recurring tasks for each visible day
   useEffect(() => {
-    if (view === "week") weekDays.forEach((d) => generateForDate(format(d, "yyyy-MM-dd")));
-  }, [weekStart, view]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (view === "week") {
+      weekDays.forEach((d) => generateForDate(format(d, "yyyy-MM-dd")));
+    } else {
+      allDays.forEach((d) => generateForDate(format(d, "yyyy-MM-dd")));
+    }
+  }, [weekStart, viewMonth, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Month helpers ─────────────────────────────────────────────────────────
   const monthStart = startOfMonth(viewMonth);

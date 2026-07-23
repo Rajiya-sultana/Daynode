@@ -13,13 +13,18 @@ type FilledSlots = Record<string, FilledSlot>;
 export default function VisionTemplateEditor({
   onSave,
   onClose,
+  initialTemplateId,
+  initialFilled,
 }: {
   onSave: (item: Omit<VisionItem, "id" | "createdAt">) => void;
   onClose: () => void;
+  initialTemplateId?: string;
+  initialFilled?: FilledSlots;
 }) {
-  const [step, setStep]           = useState<"pick" | "fill">("pick");
-  const [template, setTemplate]   = useState<TemplateDef | null>(null);
-  const [filled, setFilled]       = useState<FilledSlots>({});
+  const initTemplate = initialTemplateId ? (TEMPLATES.find(t => t.id === initialTemplateId) ?? null) : null;
+  const [step, setStep]           = useState<"pick" | "fill">(initTemplate ? "fill" : "pick");
+  const [template, setTemplate]   = useState<TemplateDef | null>(initTemplate);
+  const [filled, setFilled]       = useState<FilledSlots>(initialFilled ?? {});
   const [editSlotId, setEditSlotId] = useState<string | null>(null);
   const [editText, setEditText]   = useState("");
 

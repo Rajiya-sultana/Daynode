@@ -40,19 +40,24 @@ export default function DailyJournal() {
   }
 
   function handlePaste(e: React.ClipboardEvent) {
-    const text = e.clipboardData.getData("text/plain").trim();
-    const isBareUrl = /^https?:\/\/\S+$/.test(text);
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    const trimmed = text.trim();
+    const isBareUrl = /^https?:\/\/\S+$/.test(trimmed);
 
     if (isBareUrl) {
-      // Single URL paste → make it a clickable link
-      e.preventDefault();
       document.execCommand(
         "insertHTML", false,
-        `<a href="${text}" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">${text}</a>`,
+        `<a href="${trimmed}" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:underline;text-underline-offset:2px;">${trimmed}</a>`,
       );
+    } else {
+      // Escape HTML special chars, then convert newlines to <br> to preserve line breaks
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      document.execCommand("insertHTML", false, escaped.split("\n").join("<br>"));
     }
-    // Everything else: let the browser paste natively so it preserves
-    // paragraphs, line breaks, and indentation exactly as written.
     setTimeout(scheduleSave, 100);
   }
 

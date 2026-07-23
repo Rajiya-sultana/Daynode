@@ -32,7 +32,7 @@ export default function QuickCapture({ open, onClose }: QuickCaptureProps) {
     [input, tags],
   );
 
-  const saveDate   = parsed.date ?? today;
+  const saveDate   = parsed.date ?? selectedDate;
   const isToday    = saveDate === today;
   const isSelected = saveDate === selectedDate;
 

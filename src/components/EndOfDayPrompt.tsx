@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Moon, CheckCircle2, Circle, AlertCircle, ArrowRight, Clock, BookOpen } from "lucide-react";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import { useTaskStore, STATUS_META } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 
 const REVIEW_HOUR = 18; // 6 PM
 
 export default function EndOfDayPrompt() {
+  const router = useRouter();
   const { tasks, journals, setJournal }          = useTaskStore();
   const { lastReviewDate, setLastReviewDate }     = useUIStore();
   const [open, setOpen]       = useState(false);
@@ -69,7 +71,7 @@ export default function EndOfDayPrompt() {
   function handleGoToReview() {
     setLastReviewDate(today);
     setOpen(false);
-    window.location.href = "/review";
+    router.push("/review");
   }
 
   // Today's task data
