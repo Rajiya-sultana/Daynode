@@ -1,21 +1,4 @@
-export type SlotType = "image" | "text" | "word";
-
-export interface SlotDef {
-  id: string;
-  type: SlotType;
-  area: string;
-  placeholder?: string;
-  textSize?: number;
-  textWeight?: number;
-  textAlign?: "left" | "center" | "right";
-  textColor?: string;
-  bg?: string;
-  italic?: boolean;
-  uppercase?: boolean;
-  letterSpacing?: string;
-  lineHeight?: number;
-  fontFamily?: string;
-}
+import type { CanvasItem } from "@/components/VisionCanvasEditor";
 
 export interface TemplateDef {
   id: string;
@@ -23,154 +6,150 @@ export interface TemplateDef {
   emoji: string;
   description: string;
   bg: string;
-  textColor: string;
-  cols: number;
-  rowH: number;        // height per grid row in px
-  areas: string;       // CSS grid-template-areas
-  slots: SlotDef[];
+  starterItems: CanvasItem[];
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   6 templates re-expressed as pre-positioned CanvasItem arrays.
+   Positions are % of canvas (3:4 aspect ratio).
+   Image items with content="" show a tap-to-upload placeholder.
+───────────────────────────────────────────────────────────────── */
 export const TEMPLATES: TemplateDef[] = [
-  /* ─── 1. MOSAIC — warm study collage ─────────────────────────── */
+
+  /* 1. MOSAIC — warm study collage ─────────────────────────────── */
   {
     id: "mosaic",
     name: "Mosaic",
     emoji: "🎨",
-    description: "Warm study collage with mixed sizes",
+    description: "Warm collage with mixed sizes",
     bg: "#f0ebe0",
-    textColor: "#2a2a2a",
-    cols: 3,
-    rowH: 100,
-    areas: `"a a b" "a a c" "d e c" "d f f"`,
-    slots: [
-      { id: "a", type: "image",  area: "a" },
-      { id: "b", type: "image",  area: "b" },
-      { id: "c", type: "image",  area: "c" },
-      { id: "d", type: "image",  area: "d" },
-      { id: "e", type: "text",   area: "e", bg: "#ece8df", textColor: "#444",
-        textSize: 13, italic: true, textAlign: "center", lineHeight: 1.4,
-        placeholder: "Studying doesn't suck as much as failing." },
-      { id: "f", type: "image",  area: "f" },
+    starterItems: [
+      { id: "m-a", type: "image", content: "", x: 0,    y: 0,  w: 66.6, h: 50,   zIndex: 1 },
+      { id: "m-b", type: "image", content: "", x: 66.6, y: 0,  w: 33.3, h: 25,   zIndex: 1 },
+      { id: "m-c", type: "image", content: "", x: 66.6, y: 25, w: 33.3, h: 50,   zIndex: 1 },
+      { id: "m-d", type: "image", content: "", x: 0,    y: 50, w: 33.3, h: 50,   zIndex: 1 },
+      {
+        id: "m-e", type: "text",
+        content: "Studying doesn't suck as much as failing.",
+        x: 33.3, y: 50, w: 33.3, h: 25,
+        fontSize: 11, color: "#444444", bg: "#ece8df", italic: true, zIndex: 2,
+      },
+      { id: "m-f", type: "image", content: "", x: 33.3, y: 75, w: 66.6, h: 25,   zIndex: 1 },
     ],
   },
 
-  /* ─── 2. DARK POWER — black gym / discipline ─────────────────── */
+  /* 2. DARK POWER — black gym / discipline ─────────────────────── */
   {
     id: "dark",
     name: "Dark Power",
     emoji: "⚡",
     description: "Black gym discipline aesthetic",
     bg: "#080808",
-    textColor: "#ffffff",
-    cols: 2,
-    rowH: 130,
-    areas: `"a b" "a c" "d d" "e f"`,
-    slots: [
-      { id: "a", type: "image",  area: "a" },
-      { id: "b", type: "image",  area: "b" },
-      { id: "c", type: "image",  area: "c" },
-      { id: "d", type: "word",   area: "d", bg: "#080808", textColor: "#ffffff",
-        textSize: 52, textWeight: 900, uppercase: true, textAlign: "center",
-        letterSpacing: "-0.02em", fontFamily: "Georgia, serif",
-        placeholder: "DISCIPLINE" },
-      { id: "e", type: "image",  area: "e" },
-      { id: "f", type: "text",   area: "f", bg: "#141414", textColor: "#888",
-        textSize: 12, italic: false, textAlign: "center", lineHeight: 1.5,
-        placeholder: "Will it be easy? Nope.\nWorth it? Absolutely." },
+    starterItems: [
+      { id: "d-a", type: "image", content: "", x: 0,  y: 0,  w: 50, h: 50, zIndex: 1 },
+      { id: "d-b", type: "image", content: "", x: 50, y: 0,  w: 50, h: 25, zIndex: 1 },
+      { id: "d-c", type: "image", content: "", x: 50, y: 25, w: 50, h: 25, zIndex: 1 },
+      {
+        id: "d-d", type: "text",
+        content: "DISCIPLINE",
+        x: 0, y: 50, w: 100, h: 25,
+        fontSize: 38, color: "#ffffff", bg: "#080808", bold: true, zIndex: 2,
+      },
+      { id: "d-e", type: "image", content: "", x: 0,  y: 75, w: 50, h: 25, zIndex: 1 },
+      {
+        id: "d-f", type: "text",
+        content: "Will it be easy? Nope.\nWorth it? Absolutely.",
+        x: 50, y: 75, w: 50, h: 25,
+        fontSize: 11, color: "#888888", bg: "#141414", zIndex: 2,
+      },
     ],
   },
 
-  /* ─── 3. GLOW UP — clean pink 2-column ───────────────────────── */
+  /* 3. GLOW UP — clean 6-cell pink grid ─────────────────────────── */
   {
     id: "glowup",
     name: "Glow Up",
     emoji: "🌸",
     description: "Clean 6-cell pink grid",
     bg: "#fff0f3",
-    textColor: "#333",
-    cols: 2,
-    rowH: 140,
-    areas: `"a b" "c d" "e f"`,
-    slots: [
-      { id: "a", type: "image", area: "a" },
-      { id: "b", type: "image", area: "b" },
-      { id: "c", type: "image", area: "c" },
-      { id: "d", type: "image", area: "d" },
-      { id: "e", type: "image", area: "e" },
-      { id: "f", type: "image", area: "f" },
+    starterItems: [
+      { id: "g-a", type: "image", content: "", x: 0,  y: 0,    w: 50, h: 33.3, zIndex: 1 },
+      { id: "g-b", type: "image", content: "", x: 50, y: 0,    w: 50, h: 33.3, zIndex: 1 },
+      { id: "g-c", type: "image", content: "", x: 0,  y: 33.3, w: 50, h: 33.3, zIndex: 1 },
+      { id: "g-d", type: "image", content: "", x: 50, y: 33.3, w: 50, h: 33.3, zIndex: 1 },
+      { id: "g-e", type: "image", content: "", x: 0,  y: 66.6, w: 50, h: 33.3, zIndex: 1 },
+      { id: "g-f", type: "image", content: "", x: 50, y: 66.6, w: 50, h: 33.3, zIndex: 1 },
     ],
   },
 
-  /* ─── 4. WELLNESS — earth tones health grid ──────────────────── */
+  /* 4. WELLNESS — earth tones with tall center ───────────────────── */
   {
     id: "wellness",
     name: "Wellness",
     emoji: "🌿",
     description: "Earth tone 3-col with tall center",
     bg: "#0f1a0f",
-    textColor: "#fff",
-    cols: 3,
-    rowH: 100,
-    areas: `"a b c" "d b e" "f g h"`,
-    slots: [
-      { id: "a", type: "image", area: "a" },
-      { id: "b", type: "image", area: "b" },
-      { id: "c", type: "image", area: "c" },
-      { id: "d", type: "image", area: "d" },
-      { id: "e", type: "text",  area: "e", bg: "rgba(255,255,255,0.1)", textColor: "#fff",
-        textSize: 15, textWeight: 600, italic: true, textAlign: "center", lineHeight: 1.3,
-        placeholder: "Just do it" },
-      { id: "f", type: "image", area: "f" },
-      { id: "g", type: "image", area: "g" },
-      { id: "h", type: "image", area: "h" },
+    starterItems: [
+      { id: "w-a", type: "image", content: "", x: 0,    y: 0,    w: 33.3, h: 33.3, zIndex: 1 },
+      { id: "w-b", type: "image", content: "", x: 33.3, y: 0,    w: 33.3, h: 66.6, zIndex: 1 },
+      { id: "w-c", type: "image", content: "", x: 66.6, y: 0,    w: 33.3, h: 33.3, zIndex: 1 },
+      { id: "w-d", type: "image", content: "", x: 0,    y: 33.3, w: 33.3, h: 33.3, zIndex: 1 },
+      {
+        id: "w-e", type: "text",
+        content: "Just do it",
+        x: 66.6, y: 33.3, w: 33.3, h: 33.3,
+        fontSize: 13, color: "#ffffff", bg: "rgba(255,255,255,0.1)", italic: true, zIndex: 2,
+      },
+      { id: "w-f", type: "image", content: "", x: 0,    y: 66.6, w: 33.3, h: 33.3, zIndex: 1 },
+      { id: "w-g", type: "image", content: "", x: 33.3, y: 66.6, w: 33.3, h: 33.3, zIndex: 1 },
+      { id: "w-h", type: "image", content: "", x: 66.6, y: 66.6, w: 33.3, h: 33.3, zIndex: 1 },
     ],
   },
 
-  /* ─── 5. FAITH — warm moody spiritual ───────────────────────── */
+  /* 5. FAITH & GOALS — warm moody spiritual ──────────────────────── */
   {
     id: "faith",
     name: "Faith & Goals",
     emoji: "🌙",
     description: "Warm moody spiritual collage",
     bg: "#1a1410",
-    textColor: "#d4c5a9",
-    cols: 2,
-    rowH: 120,
-    areas: `"a b" "a c" "d d" "e f"`,
-    slots: [
-      { id: "a", type: "image", area: "a" },
-      { id: "b", type: "image", area: "b" },
-      { id: "c", type: "image", area: "c" },
-      { id: "d", type: "text",  area: "d", bg: "#261e17", textColor: "#d4c5a9",
-        textSize: 14, italic: true, textAlign: "center", lineHeight: 1.6,
-        placeholder: "God put that dream in your heart for a reason." },
-      { id: "e", type: "image", area: "e" },
-      { id: "f", type: "image", area: "f" },
+    starterItems: [
+      { id: "f-a", type: "image", content: "", x: 0,  y: 0,  w: 50, h: 50, zIndex: 1 },
+      { id: "f-b", type: "image", content: "", x: 50, y: 0,  w: 50, h: 25, zIndex: 1 },
+      { id: "f-c", type: "image", content: "", x: 50, y: 25, w: 50, h: 25, zIndex: 1 },
+      {
+        id: "f-d", type: "text",
+        content: "God put that dream in your heart for a reason.",
+        x: 0, y: 50, w: 100, h: 25,
+        fontSize: 13, color: "#d4c5a9", bg: "#261e17", italic: true, zIndex: 2,
+      },
+      { id: "f-e", type: "image", content: "", x: 0,  y: 75, w: 50, h: 25, zIndex: 1 },
+      { id: "f-f", type: "image", content: "", x: 50, y: 75, w: 50, h: 25, zIndex: 1 },
     ],
   },
 
-  /* ─── 6. EDITORIAL — clean magazine layout ───────────────────── */
+  /* 6. EDITORIAL — clean magazine layout ─────────────────────────── */
   {
     id: "editorial",
     name: "Editorial",
     emoji: "📰",
     description: "Magazine hero + quote + word",
     bg: "#ffffff",
-    textColor: "#1a1a1a",
-    cols: 2,
-    rowH: 140,
-    areas: `"a a" "b c" "d d"`,
-    slots: [
-      { id: "a", type: "image", area: "a" },
-      { id: "b", type: "text",  area: "b", bg: "#f5f0e8", textColor: "#1a1a1a",
-        textSize: 17, textWeight: 700, italic: false, textAlign: "left", lineHeight: 1.35,
-        fontFamily: "Georgia, serif",
-        placeholder: "do it for your future self" },
-      { id: "c", type: "image", area: "c" },
-      { id: "d", type: "word",  area: "d", bg: "#1a1a1a", textColor: "#ffffff",
-        textSize: 46, textWeight: 900, uppercase: true, textAlign: "center",
-        letterSpacing: "-0.02em", fontFamily: "Georgia, serif",
-        placeholder: "ELEVATE" },
+    starterItems: [
+      { id: "e-a", type: "image", content: "", x: 0,  y: 0,    w: 100, h: 33.3, zIndex: 1 },
+      {
+        id: "e-b", type: "text",
+        content: "do it for your future self",
+        x: 0, y: 33.3, w: 50, h: 33.3,
+        fontSize: 15, color: "#1a1a1a", bg: "#f5f0e8", bold: true, zIndex: 2,
+      },
+      { id: "e-c", type: "image", content: "", x: 50, y: 33.3, w: 50, h: 33.3, zIndex: 1 },
+      {
+        id: "e-d", type: "text",
+        content: "ELEVATE",
+        x: 0, y: 66.6, w: 100, h: 33.3,
+        fontSize: 42, color: "#ffffff", bg: "#1a1a1a", bold: true, zIndex: 2,
+      },
     ],
   },
 ];
