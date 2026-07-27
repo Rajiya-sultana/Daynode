@@ -195,6 +195,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSave(); } }}
                   placeholder="What needs to be done?"
                   className="w-full bg-transparent border-0 border-b-2 border-ruled focus:border-accent outline-none text-sm font-semibold text-ink placeholder:text-ink-faint py-2 transition-colors"
                 />
