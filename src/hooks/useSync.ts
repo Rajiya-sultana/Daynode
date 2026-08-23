@@ -37,39 +37,46 @@ export function useSync() {
   }
 
   async function pull() {
-    if (!supabase || !supabaseEnabled) return;
+    if (!supabase || !supabaseEnabled) {
+      // No Supabase — seed plan immediately
+      useTaskStore.getState().seedPlan();
+      return;
+    }
     try {
-      const deviceId = getDeviceId();
+      // Pull the most recently synced record across ALL devices (single-user app)
       const { data, error } = await supabase
         .from("bloom_sync")
         .select("data, synced_at")
-        .eq("device_id", deviceId)
+        .order("synced_at", { ascending: false })
+        .limit(1)
         .single();
 
-      if (error || !data) return;
-      const remote = data.data as Record<string, unknown>;
-
-      // Merge remote data into store — only pull if we have no local tasks
-      const localTasks = useTaskStore.getState().tasks;
-      if (localTasks.length === 0 && Array.isArray(remote.tasks) && remote.tasks.length > 0) {
-        useTaskStore.setState({
-          tasks: remote.tasks as never,
-          tags: (remote.tags ?? []) as never,
-          covers: (remote.covers ?? {}) as never,
-          journals: (remote.journals ?? {}) as never,
-          dailyHistory: (remote.dailyHistory ?? {}) as never,
-          currentStreak: (remote.currentStreak ?? 0) as number,
-          longestStreak: (remote.longestStreak ?? 0) as number,
-        });
+      if (!error && data) {
+        const remote = data.data as Record<string, unknown>;
+        if (Array.isArray(remote.tasks) && remote.tasks.length > 0) {
+          useTaskStore.setState({
+            tasks: remote.tasks as never,
+            tags: (remote.tags ?? []) as never,
+            covers: (remote.covers ?? {}) as never,
+            journals: (remote.journals ?? {}) as never,
+            dailyHistory: (remote.dailyHistory ?? {}) as never,
+            currentStreak: (remote.currentStreak ?? 0) as number,
+            longestStreak: (remote.longestStreak ?? 0) as number,
+          });
+          // Data restored from Supabase — seed plan on top if not already done
+          useTaskStore.getState().seedPlan();
+          return;
+        }
       }
     } catch {
       // silent
     }
+    // Nothing in Supabase yet — seed the plan as starting data
+    useTaskStore.getState().seedPlan();
   }
 
-  // Pull on mount (restore data on new device)
+  // Pull on mount (restore data on new device/browser, then seed if needed)
   useEffect(() => {
-    if (!supabaseEnabled) return;
     pull();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

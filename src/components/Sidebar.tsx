@@ -109,8 +109,9 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 mt-4">
+      {/* Nav + bottom — scrollable on small screens */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+      <nav className="px-3 mt-4">
         {navItems.map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
@@ -151,7 +152,7 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Bottom section ── */}
-      <div className="px-4 pb-5 pt-3 border-t border-binding/40 flex flex-col gap-2">
+      <div className="mt-auto px-4 pb-5 pt-3 border-t border-binding/40 flex flex-col gap-2">
 
         {/* Sync status */}
         <div className="px-3 py-2">
@@ -238,6 +239,8 @@ export default function Sidebar() {
           <Pencil className="w-3.5 h-3.5 text-ink-faint opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
         </button>
       </div>
+
+      </div>{/* end scrollable wrapper */}
 
       <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
       <RecurringModal open={recurringOpen} onClose={() => setRecurringOpen(false)} />

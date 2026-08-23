@@ -185,6 +185,7 @@ type RawHabit = {
   tags: string[];
   recurrence: "daily" | "weekdays" | "weekly" | "custom";
   days: number[]; // 0=Sun … 6=Sat
+  startDate: string;
 };
 
 const RAW_HABITS: RawHabit[] = [
@@ -195,6 +196,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["outreach"],
     recurrence: "weekdays",
     days: [],
+    startDate: "2026-08-24",
   },
   {
     id: "plan-habit-upwork",
@@ -203,6 +205,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["upwork"],
     recurrence: "weekdays",
     days: [],
+    startDate: "2026-08-24",
   },
   {
     id: "plan-habit-uiux",
@@ -211,6 +214,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["uiux"],
     recurrence: "weekdays",
     days: [],
+    startDate: "2026-08-24",
   },
   {
     id: "plan-habit-reel",
@@ -219,6 +223,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["content"],
     recurrence: "custom",
     days: [1, 3, 5], // Mon, Wed, Fri
+    startDate: "2026-08-24",
   },
   {
     id: "plan-habit-tracker",
@@ -227,6 +232,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["tracking"],
     recurrence: "custom",
     days: [1, 2, 3, 4, 5, 6], // Mon–Sat
+    startDate: "2026-08-24",
   },
   {
     id: "plan-habit-saturday",
@@ -235,6 +241,7 @@ const RAW_HABITS: RawHabit[] = [
     tags: ["content", "outreach"],
     recurrence: "custom",
     days: [6], // Saturday only
+    startDate: "2026-08-24",
   },
 ];
 
@@ -275,5 +282,6 @@ export function buildSeedRecurring(): RecurringTask[] {
     days: h.days,
     active: true,
     createdAt: now,
+    startDate: h.startDate,
   }));
 }

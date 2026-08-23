@@ -57,6 +57,7 @@ export interface RecurringTask {
   days: number[]; // 0=Sun … 6=Sat; empty for daily/weekdays
   active: boolean;
   createdAt: string;
+  startDate?: string; // yyyy-MM-dd; don't generate before this date
 }
 
 export interface Tag {
@@ -326,6 +327,7 @@ export const useTaskStore = create<TaskState>()(
 
         for (const rt of recurringTasks) {
           if (!rt.active) continue;
+          if (rt.startDate && date < rt.startDate) continue;
           const applies =
             rt.recurrence === "daily" ||
             (rt.recurrence === "weekdays" && dow >= 1 && dow <= 5) ||
