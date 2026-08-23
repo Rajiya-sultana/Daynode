@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
+import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring } from "@/lib/seedPlan";
 
 export type TaskStatus =
   | "pending" | "seen" | "in-progress" | "blocked" | "completed" | "cancelled";
@@ -100,6 +101,7 @@ interface TaskState {
   covers: Record<string, Cover>;
   journals: Record<string, string>; // date → text
   visionBoard: VisionItem[];
+  planSeeded: boolean;
 
   setSelectedDate: (date: string) => void;
   addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
@@ -142,6 +144,9 @@ interface TaskState {
   // Export / Import
   exportData: () => void;
   importData: (json: string) => { ok: boolean; error?: string };
+
+  // Seed plan
+  seedPlan: () => void;
 
   getTasksForDate: (date: string) => Task[];
 }
@@ -196,7 +201,7 @@ export const useTaskStore = create<TaskState>()(
       tasks: [], tags: DEFAULT_TAGS, recurringTasks: [],
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
-      covers: {}, journals: {}, visionBoard: [],
+      covers: {}, journals: {}, visionBoard: [], planSeeded: false,
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -417,6 +422,33 @@ export const useTaskStore = create<TaskState>()(
         } catch {
           return { ok: false, error: "Could not parse the file." };
         }
+      },
+
+      seedPlan: () => {
+        if (get().planSeeded) return;
+        const existingTasks = get().tasks;
+        const byDate: Record<string, number> = {};
+        for (const t of existingTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
+
+        const newTasks = buildSeedTasks(byDate);
+        const newRecurring = buildSeedRecurring();
+
+        const existingTagIds = new Set(get().tags.map((t) => t.id));
+        const tagsToAdd = PLAN_TAGS.filter((t) => !existingTagIds.has(t.id));
+
+        const existingRtIds = new Set(get().recurringTasks.map((r) => r.id));
+        const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id));
+
+        const allTasks = [...existingTasks, ...newTasks];
+        const history = updateDailyHistory(allTasks);
+        set({
+          tasks: allTasks,
+          tags: [...get().tags, ...tagsToAdd],
+          recurringTasks: [...get().recurringTasks, ...recurringToAdd],
+          dailyHistory: history,
+          planSeeded: true,
+          ...computeStreaks(history),
+        });
       },
 
       getTasksForDate: (date) =>

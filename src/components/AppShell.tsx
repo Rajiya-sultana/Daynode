@@ -5,10 +5,14 @@ import QuickCapture from "./QuickCapture";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import EndOfDayPrompt from "./EndOfDayPrompt";
 import FocusMode from "./FocusMode";
+import { useTaskStore } from "@/store/taskStore";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [quickOpen,     setQuickOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const seedPlan = useTaskStore((s) => s.seedPlan);
+
+  useEffect(() => { seedPlan(); }, [seedPlan]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
