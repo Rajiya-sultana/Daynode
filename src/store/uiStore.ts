@@ -33,7 +33,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      theme: "light",
+      theme: "dark",
       profile: { name: "My Workspace", emoji: "🌸", avatarUrl: "" },
       lastReviewDate: "",
 

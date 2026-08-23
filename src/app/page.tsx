@@ -94,7 +94,7 @@ export default function Home() {
         </header>
 
         {/* Notebook page body — cover image + ruled lines + red margin */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Notion-style cover image */}
           <CoverImage />
           {/* Rollover banner */}
