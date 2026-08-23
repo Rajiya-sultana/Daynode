@@ -427,30 +427,55 @@ export const useTaskStore = create<TaskState>()(
       },
 
       seedPlan: () => {
-        if (get().planSeeded) return;
-        const existingTasks = get().tasks;
-        const byDate: Record<string, number> = {};
-        for (const t of existingTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
-
-        const newTasks = buildSeedTasks(byDate);
         const newRecurring = buildSeedRecurring();
 
-        const existingTagIds = new Set(get().tags.map((t) => t.id));
-        const tagsToAdd = PLAN_TAGS.filter((t) => !existingTagIds.has(t.id));
-
+        // Always update existing plan habits with latest data (picks up startDate)
+        const planHabitIds = new Set(newRecurring.map((r) => r.id));
+        const updatedRecurring = get().recurringTasks.map((rt) => {
+          if (!planHabitIds.has(rt.id)) return rt;
+          const updated = newRecurring.find((r) => r.id === rt.id);
+          return updated ? { ...rt, ...updated } : rt;
+        });
         const existingRtIds = new Set(get().recurringTasks.map((r) => r.id));
         const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id));
 
-        const allTasks = [...existingTasks, ...newTasks];
-        const history = updateDailyHistory(allTasks);
-        set({
-          tasks: allTasks,
-          tags: [...get().tags, ...tagsToAdd],
-          recurringTasks: [...get().recurringTasks, ...recurringToAdd],
-          dailyHistory: history,
-          planSeeded: true,
-          ...computeStreaks(history),
+        // Remove habit instances generated before their startDate
+        const cleanedTasks = get().tasks.filter((t) => {
+          if (!t.recurringId || !planHabitIds.has(t.recurringId)) return true;
+          const habit = newRecurring.find((r) => r.id === t.recurringId);
+          return !habit?.startDate || t.date >= habit.startDate;
         });
+
+        // Tags
+        const existingTagIds = new Set(get().tags.map((t) => t.id));
+        const tagsToAdd = PLAN_TAGS.filter((t) => !existingTagIds.has(t.id));
+
+        if (!get().planSeeded) {
+          // One-time: add all plan tasks
+          const byDate: Record<string, number> = {};
+          for (const t of cleanedTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
+          const newTasks = buildSeedTasks(byDate);
+          const allTasks = [...cleanedTasks, ...newTasks];
+          const history = updateDailyHistory(allTasks);
+          set({
+            tasks: allTasks,
+            tags: [...get().tags, ...tagsToAdd],
+            recurringTasks: [...updatedRecurring, ...recurringToAdd],
+            dailyHistory: history,
+            planSeeded: true,
+            ...computeStreaks(history),
+          });
+        } else {
+          // Already seeded — only update habits and purge bad instances
+          const history = updateDailyHistory(cleanedTasks);
+          set({
+            tasks: cleanedTasks,
+            tags: [...get().tags, ...tagsToAdd],
+            recurringTasks: [...updatedRecurring, ...recurringToAdd],
+            dailyHistory: history,
+            ...computeStreaks(history),
+          });
+        }
       },
 
       getTasksForDate: (date) =>

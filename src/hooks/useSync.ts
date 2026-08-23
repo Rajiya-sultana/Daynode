@@ -15,14 +15,17 @@ export function useSync() {
     setStatus("syncing");
     try {
       const deviceId = getDeviceId();
+      const s = useTaskStore.getState();
       const data = {
-        tasks: store.tasks,
-        tags: store.tags,
-        covers: store.covers,
-        journals: store.journals,
-        dailyHistory: store.dailyHistory,
-        currentStreak: store.currentStreak,
-        longestStreak: store.longestStreak,
+        tasks:          s.tasks,
+        tags:           s.tags,
+        recurringTasks: s.recurringTasks,
+        covers:         s.covers,
+        journals:       s.journals,
+        dailyHistory:   s.dailyHistory,
+        currentStreak:  s.currentStreak,
+        longestStreak:  s.longestStreak,
+        planSeeded:     s.planSeeded,
       };
       const { error } = await supabase
         .from("bloom_sync")
@@ -38,12 +41,11 @@ export function useSync() {
 
   async function pull() {
     if (!supabase || !supabaseEnabled) {
-      // No Supabase — seed plan immediately
       useTaskStore.getState().seedPlan();
       return;
     }
     try {
-      // Pull the most recently synced record across ALL devices (single-user app)
+      // Pull the most recently synced record across all devices (single-user app)
       const { data, error } = await supabase
         .from("bloom_sync")
         .select("data, synced_at")
@@ -55,15 +57,18 @@ export function useSync() {
         const remote = data.data as Record<string, unknown>;
         if (Array.isArray(remote.tasks) && remote.tasks.length > 0) {
           useTaskStore.setState({
-            tasks: remote.tasks as never,
-            tags: (remote.tags ?? []) as never,
-            covers: (remote.covers ?? {}) as never,
-            journals: (remote.journals ?? {}) as never,
-            dailyHistory: (remote.dailyHistory ?? {}) as never,
-            currentStreak: (remote.currentStreak ?? 0) as number,
-            longestStreak: (remote.longestStreak ?? 0) as number,
+            tasks:          remote.tasks          as never,
+            tags:           (remote.tags   ?? []) as never,
+            recurringTasks: (remote.recurringTasks ?? []) as never,
+            covers:         (remote.covers ?? {}) as never,
+            journals:       (remote.journals ?? {}) as never,
+            dailyHistory:   (remote.dailyHistory ?? {}) as never,
+            currentStreak:  (remote.currentStreak ?? 0) as number,
+            longestStreak:  (remote.longestStreak ?? 0) as number,
+            planSeeded:     (remote.planSeeded ?? false) as boolean,
           });
-          // Data restored from Supabase — seed plan on top if not already done
+          // Always run seedPlan after pull — it updates recurring tasks
+          // with startDate and removes bad instances, even if planSeeded is true
           useTaskStore.getState().seedPlan();
           return;
         }
@@ -71,11 +76,11 @@ export function useSync() {
     } catch {
       // silent
     }
-    // Nothing in Supabase yet — seed the plan as starting data
+    // Nothing in Supabase — fresh start, seed the plan
     useTaskStore.getState().seedPlan();
   }
 
-  // Pull on mount (restore data on new device/browser, then seed if needed)
+  // Pull on mount (restores data, then seeds/updates plan habits)
   useEffect(() => {
     pull();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,10 +90,10 @@ export function useSync() {
   useEffect(() => {
     if (!supabaseEnabled) return;
     clearTimeout(timer.current);
-    timer.current = setTimeout(push, 3000); // 3s debounce
+    timer.current = setTimeout(push, 3000);
     return () => clearTimeout(timer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.tasks, store.journals, store.covers]);
+  }, [store.tasks, store.journals, store.covers, store.recurringTasks]);
 
   // Auto-push every 30s
   useEffect(() => {
