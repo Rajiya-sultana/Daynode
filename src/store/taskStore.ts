@@ -58,6 +58,7 @@ export interface RecurringTask {
   active: boolean;
   createdAt: string;
   startDate?: string; // yyyy-MM-dd; don't generate before this date
+  endDate?: string;   // yyyy-MM-dd; don't generate after this date
 }
 
 export interface Tag {
@@ -328,6 +329,7 @@ export const useTaskStore = create<TaskState>()(
         for (const rt of recurringTasks) {
           if (!rt.active) continue;
           if (rt.startDate && date < rt.startDate) continue;
+          if (rt.endDate && date > rt.endDate) continue;
           const applies =
             rt.recurrence === "daily" ||
             (rt.recurrence === "weekdays" && dow >= 1 && dow <= 5) ||
@@ -439,11 +441,13 @@ export const useTaskStore = create<TaskState>()(
         const existingRtIds = new Set(get().recurringTasks.map((r) => r.id));
         const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id));
 
-        // Remove habit instances generated before their startDate
+        // Remove habit instances generated outside their startDate–endDate window
         const cleanedTasks = get().tasks.filter((t) => {
           if (!t.recurringId || !planHabitIds.has(t.recurringId)) return true;
           const habit = newRecurring.find((r) => r.id === t.recurringId);
-          return !habit?.startDate || t.date >= habit.startDate;
+          if (habit?.startDate && t.date < habit.startDate) return false;
+          if (habit?.endDate && t.date > habit.endDate) return false;
+          return true;
         });
 
         // Tags
