@@ -192,6 +192,17 @@ function updateDailyHistory(tasks: Task[]): DailyHistory {
   return history;
 }
 
+// Deduplicate tasks by title+date — keeps first occurrence
+function deduplicateTasks(tasks: Task[]): Task[] {
+  const seen = new Set<string>();
+  return tasks.filter((t) => {
+    const key = `${t.date}||${t.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function rebuildHistory(tasks: Task[], set: (s: Partial<TaskState>) => void) {
   const history = updateDailyHistory(tasks);
   set({ tasks, dailyHistory: history, ...computeStreaks(history) });
@@ -454,15 +465,22 @@ export const useTaskStore = create<TaskState>()(
         const existingTagIds = new Set(get().tags.map((t) => t.id));
         const tagsToAdd = PLAN_TAGS.filter((t) => !existingTagIds.has(t.id));
 
-        if (!get().planSeeded) {
-          // One-time: add all plan tasks
+        // Detect if plan tasks already exist (sentinel: first plan task title+date)
+        const PLAN_SENTINEL_DATE = "2026-08-24";
+        const PLAN_SENTINEL_TITLE = "Decide niche in writing: handmade + fashion D2C brands";
+        const planTasksAlreadyExist = cleanedTasks.some(
+          (t) => t.date === PLAN_SENTINEL_DATE && t.title === PLAN_SENTINEL_TITLE
+        );
+
+        if (!get().planSeeded && !planTasksAlreadyExist) {
+          // First time seeding — add all plan tasks
           const byDate: Record<string, number> = {};
           for (const t of cleanedTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
           const newTasks = buildSeedTasks(byDate);
-          const allTasks = [...cleanedTasks, ...newTasks];
-          const history = updateDailyHistory(allTasks);
+          const deduped = deduplicateTasks([...cleanedTasks, ...newTasks]);
+          const history = updateDailyHistory(deduped);
           set({
-            tasks: allTasks,
+            tasks: deduped,
             tags: [...get().tags, ...tagsToAdd],
             recurringTasks: [...updatedRecurring, ...recurringToAdd],
             dailyHistory: history,
@@ -470,13 +488,15 @@ export const useTaskStore = create<TaskState>()(
             ...computeStreaks(history),
           });
         } else {
-          // Already seeded — only update habits and purge bad instances
-          const history = updateDailyHistory(cleanedTasks);
+          // Already seeded (or tasks exist) — dedup, update habits, purge bad instances
+          const deduped = deduplicateTasks(cleanedTasks);
+          const history = updateDailyHistory(deduped);
           set({
-            tasks: cleanedTasks,
+            tasks: deduped,
             tags: [...get().tags, ...tagsToAdd],
             recurringTasks: [...updatedRecurring, ...recurringToAdd],
             dailyHistory: history,
+            planSeeded: true,
             ...computeStreaks(history),
           });
         }
