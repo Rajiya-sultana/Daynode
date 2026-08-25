@@ -40,8 +40,9 @@ export default function Home() {
   // Keyboard shortcut: N to open add modal
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const el = e.target as HTMLElement;
+      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA") return;
+      if (el?.isContentEditable) return;
       if (e.key === "n" || e.key === "N") { setEditTask(null); setShowAdd(true); }
     };
     window.addEventListener("keydown", handler);
