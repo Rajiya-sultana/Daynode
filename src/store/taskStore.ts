@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
 import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring } from "@/lib/seedPlan";
+import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
 
 export type TaskStatus =
   | "pending" | "seen" | "in-progress" | "blocked" | "completed" | "cancelled";
@@ -104,6 +105,7 @@ interface TaskState {
   journals: Record<string, string>; // date → text
   visionBoard: VisionItem[];
   planSeeded: boolean;
+  uiUxSprintSeeded: boolean;
 
   setSelectedDate: (date: string) => void;
   addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
@@ -149,6 +151,7 @@ interface TaskState {
 
   // Seed plan
   seedPlan: () => void;
+  seedUiUxSprint: () => void;
 
   getTasksForDate: (date: string) => Task[];
 }
@@ -214,7 +217,7 @@ export const useTaskStore = create<TaskState>()(
       tasks: [], tags: DEFAULT_TAGS, recurringTasks: [],
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
-      covers: {}, journals: {}, visionBoard: [], planSeeded: false,
+      covers: {}, journals: {}, visionBoard: [], planSeeded: false, uiUxSprintSeeded: false,
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -500,6 +503,32 @@ export const useTaskStore = create<TaskState>()(
             ...computeStreaks(history),
           });
         }
+      },
+
+      seedUiUxSprint: () => {
+        const current = get().tasks;
+        const alreadyExists = current.some(
+          (t) => t.date === UIUX_SENTINEL_DATE && t.title === UIUX_SENTINEL_TITLE
+        );
+        if (alreadyExists || get().uiUxSprintSeeded) {
+          set({ uiUxSprintSeeded: true });
+          return;
+        }
+        const existingTagIds = new Set(get().tags.map((t) => t.id));
+        const byDate: Record<string, number> = {};
+        for (const t of current) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
+        const newTasks = buildUiUxSprintTasks(byDate);
+        const merged = deduplicateTasks([...current, ...newTasks]);
+        const history = updateDailyHistory(merged);
+        set({
+          tasks: merged,
+          tags: existingTagIds.has(UIUX_SPRINT_TAG.id)
+            ? get().tags
+            : [...get().tags, UIUX_SPRINT_TAG],
+          dailyHistory: history,
+          uiUxSprintSeeded: true,
+          ...computeStreaks(history),
+        });
       },
 
       getTasksForDate: (date) =>

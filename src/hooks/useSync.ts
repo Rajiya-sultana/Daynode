@@ -17,15 +17,16 @@ export function useSync() {
       const deviceId = getDeviceId();
       const s = useTaskStore.getState();
       const data = {
-        tasks:          s.tasks,
-        tags:           s.tags,
-        recurringTasks: s.recurringTasks,
-        covers:         s.covers,
-        journals:       s.journals,
-        dailyHistory:   s.dailyHistory,
-        currentStreak:  s.currentStreak,
-        longestStreak:  s.longestStreak,
-        planSeeded:     s.planSeeded,
+        tasks:             s.tasks,
+        tags:              s.tags,
+        recurringTasks:    s.recurringTasks,
+        covers:            s.covers,
+        journals:          s.journals,
+        dailyHistory:      s.dailyHistory,
+        currentStreak:     s.currentStreak,
+        longestStreak:     s.longestStreak,
+        planSeeded:        s.planSeeded,
+        uiUxSprintSeeded:  s.uiUxSprintSeeded,
       };
       const { error } = await supabase
         .from("bloom_sync")
@@ -65,11 +66,11 @@ export function useSync() {
             dailyHistory:   (remote.dailyHistory ?? {}) as never,
             currentStreak:  (remote.currentStreak ?? 0) as number,
             longestStreak:  (remote.longestStreak ?? 0) as number,
-            planSeeded:     (remote.planSeeded ?? false) as boolean,
+            planSeeded:        (remote.planSeeded ?? false) as boolean,
+            uiUxSprintSeeded:  (remote.uiUxSprintSeeded ?? false) as boolean,
           });
-          // Always run seedPlan after pull — it updates recurring tasks
-          // with startDate and removes bad instances, even if planSeeded is true
           useTaskStore.getState().seedPlan();
+          useTaskStore.getState().seedUiUxSprint();
           return;
         }
       }
@@ -78,6 +79,7 @@ export function useSync() {
     }
     // Nothing in Supabase — fresh start, seed the plan
     useTaskStore.getState().seedPlan();
+    useTaskStore.getState().seedUiUxSprint();
   }
 
   // Pull on mount (restores data, then seeds/updates plan habits)
