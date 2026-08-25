@@ -202,7 +202,7 @@ const RAW_HABITS: RawHabit[] = [
   },
   {
     id: "plan-habit-upwork",
-    title: "Send 4-5 Upwork proposals (posted last 24 hrs)",
+    title: "Send 2 Upwork proposals (posted last 24 hrs)",
     description: "19:45–20:15 · Upwork block",
     tags: ["upwork"],
     recurrence: "weekdays",
@@ -293,3 +293,11 @@ export function buildSeedRecurring(): RecurringTask[] {
     endDate: h.endDate,
   }));
 }
+
+// Task title renames — applied on every seedPlan run to fix existing stored tasks
+export const TASK_RENAMES: { from: string; to: string }[] = [
+  {
+    from: "Send 4-5 Upwork proposals (posted last 24 hrs)",
+    to:   "Send 2 Upwork proposals (posted last 24 hrs)",
+  },
+];

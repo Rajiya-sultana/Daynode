@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
-import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring } from "@/lib/seedPlan";
+import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES } from "@/lib/seedPlan";
 import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
 
 export type TaskStatus =
@@ -475,12 +475,18 @@ export const useTaskStore = create<TaskState>()(
           (t) => t.date === PLAN_SENTINEL_DATE && t.title === PLAN_SENTINEL_TITLE
         );
 
+        // Apply any title renames to already-stored tasks
+        const renamedTasks = cleanedTasks.map((t) => {
+          const rename = TASK_RENAMES.find((r) => r.from === t.title);
+          return rename ? { ...t, title: rename.to } : t;
+        });
+
         if (!get().planSeeded && !planTasksAlreadyExist) {
           // First time seeding — add all plan tasks
           const byDate: Record<string, number> = {};
-          for (const t of cleanedTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
+          for (const t of renamedTasks) byDate[t.date] = (byDate[t.date] ?? 0) + 1;
           const newTasks = buildSeedTasks(byDate);
-          const deduped = deduplicateTasks([...cleanedTasks, ...newTasks]);
+          const deduped = deduplicateTasks([...renamedTasks, ...newTasks]);
           const history = updateDailyHistory(deduped);
           set({
             tasks: deduped,
@@ -492,7 +498,7 @@ export const useTaskStore = create<TaskState>()(
           });
         } else {
           // Already seeded (or tasks exist) — dedup, update habits, purge bad instances
-          const deduped = deduplicateTasks(cleanedTasks);
+          const deduped = deduplicateTasks(renamedTasks);
           const history = updateDailyHistory(deduped);
           set({
             tasks: deduped,
