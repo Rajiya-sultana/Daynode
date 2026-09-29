@@ -192,7 +192,7 @@ type RawHabit = {
 const RAW_HABITS: RawHabit[] = [
   {
     id: "plan-habit-outreach",
-    title: "Message 12-15 store owners (IG DM / email)",
+    title: "Message 3 store owners (IG DM / email)",
     description: "19:00–19:45 · Outreach block",
     tags: ["outreach"],
     recurrence: "weekdays",
@@ -202,7 +202,7 @@ const RAW_HABITS: RawHabit[] = [
   },
   {
     id: "plan-habit-upwork",
-    title: "Send 2 Upwork proposals (posted last 24 hrs)",
+    title: "Send 1 Upwork proposal (posted last 24 hrs)",
     description: "19:45–20:15 · Upwork block",
     tags: ["upwork"],
     recurrence: "weekdays",
@@ -293,6 +293,14 @@ export const REMOVED_HABITS: { id: string; title: string }[] = [
 export const TASK_RENAMES: { from: string; to: string }[] = [
   {
     from: "Send 4-5 Upwork proposals (posted last 24 hrs)",
-    to:   "Send 2 Upwork proposals (posted last 24 hrs)",
+    to:   "Send 1 Upwork proposal (posted last 24 hrs)",
+  },
+  {
+    from: "Send 2 Upwork proposals (posted last 24 hrs)",
+    to:   "Send 1 Upwork proposal (posted last 24 hrs)",
+  },
+  {
+    from: "Message 12-15 store owners (IG DM / email)",
+    to:   "Message 3 store owners (IG DM / email)",
   },
 ];
