@@ -5,11 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, Download, Upload, Keyboard, Zap, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, Download, Upload, Keyboard, Inbox } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
-import SyncStatusBar from "./SyncStatus";
 import { useSync } from "@/hooks/useSync";
 
 const navItems = [
@@ -25,7 +24,7 @@ export default function Sidebar() {
   const inboxCount = tasks.filter((t) => t.date === "" && t.status !== "completed" && t.status !== "cancelled").length;
   const { theme, toggleTheme, profile } = useUIStore();
   const [profileOpen, setProfileOpen]     = useState(false);
-  const { status: syncStatus, push: syncNow } = useSync();
+  useSync(); // keeps Supabase sync running; no status shown
   const { exportData, importData } = useTaskStore();
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -140,21 +139,6 @@ export default function Sidebar() {
 
       {/* ── Bottom section ── */}
       <div className="mt-auto px-4 pb-5 pt-3 border-t border-binding/40 flex flex-col gap-2">
-
-        {/* Sync status */}
-        <div className="px-3 py-2">
-          <SyncStatusBar status={syncStatus} onSync={syncNow} />
-        </div>
-
-        {/* Quick capture hint */}
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <Zap className="w-3.5 h-3.5 text-ink-faint flex-shrink-0" />
-          <span className="font-mono text-[9px] text-ink-faint flex-1">Quick Capture</span>
-          <div className="flex gap-0.5">
-            <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-parchment border border-binding text-ink-faint">⌘</kbd>
-            <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-parchment border border-binding text-ink-faint">K</kbd>
-          </div>
-        </div>
 
         {/* Export / Import / Shortcuts row */}
         <div className="flex items-center gap-1 px-1">
