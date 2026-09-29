@@ -9,10 +9,13 @@ export function useSync() {
   const [status, setStatus] = useState<SyncStatus>(supabaseEnabled ? "idle" : "disabled");
   const lastSync = useRef<number>(0);
   const timer    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pulled   = useRef(false); // never push before this tab has loaded the latest data
+  const dirty    = useRef(false); // local changes not yet pushed
   const store    = useTaskStore();
 
   async function push() {
-    if (!supabase || !supabaseEnabled) return;
+    if (!supabase || !supabaseEnabled || !pulled.current) return;
+    dirty.current = false;
     setStatus("syncing");
     try {
       const deviceId = getDeviceId();
@@ -37,13 +40,23 @@ export function useSync() {
 
       if (error) throw error;
       lastSync.current = Date.now();
+      dirty.current = false;
       setStatus("synced");
     } catch {
+      dirty.current = true;
       setStatus("error");
     }
   }
 
   async function pull() {
+    try {
+      await pullInner();
+    } finally {
+      pulled.current = true;
+    }
+  }
+
+  async function pullInner() {
     if (!supabase || !supabaseEnabled) {
       useTaskStore.getState().seedPlan();
       return;
@@ -95,18 +108,27 @@ export function useSync() {
 
   // Debounced push on store changes
   useEffect(() => {
-    if (!supabaseEnabled) return;
+    if (!supabaseEnabled || !pulled.current) return;
+    dirty.current = true;
     clearTimeout(timer.current);
     timer.current = setTimeout(push, 3000);
     return () => clearTimeout(timer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.tasks, store.journals, store.covers, store.recurringTasks, store.categories]);
 
-  // Auto-push every 30s
+  // Only push real changes — a tab left open must never re-upload stale data.
+  // Leaving the tab flushes pending changes; coming back reloads the latest data.
   useEffect(() => {
     if (!supabaseEnabled) return;
-    const interval = setInterval(push, 30_000);
-    return () => clearInterval(interval);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        if (dirty.current) { clearTimeout(timer.current); push(); }
+      } else if (!dirty.current) {
+        pull();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
