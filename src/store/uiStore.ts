@@ -15,6 +15,8 @@ interface UIState {
   setTheme: (t: "light" | "dark") => void;
   updateProfile: (p: Partial<Profile>) => void;
   setLastReviewDate: (date: string) => void;
+  dismissedRollovers: string[]; // past dates whose rollover banner was closed
+  dismissRollover: (date: string) => void;
 
   // ── Focus mode (session-only, not persisted) ──────────────────────────────
   focusTaskId:    string | null;
@@ -50,6 +52,11 @@ export const useUIStore = create<UIState>()(
         set((s) => ({ profile: { ...s.profile, ...p } })),
 
       setLastReviewDate: (date) => set({ lastReviewDate: date }),
+
+      dismissedRollovers: [],
+      dismissRollover: (date) => set((s) => ({
+        dismissedRollovers: [...s.dismissedRollovers.filter((d) => d !== date), date].slice(-30),
+      })),
 
       // ── Focus mode defaults ───────────────────────────────────────────────
       focusTaskId:    null,
@@ -94,11 +101,12 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: "bloom-ui",
-      // Only persist theme, profile, and review date — focus state is session-only
+      // Only persist theme, profile, review date and dismissed banners — focus state is session-only
       partialize: (state) => ({
         theme:          state.theme,
         profile:        state.profile,
         lastReviewDate: state.lastReviewDate,
+        dismissedRollovers: state.dismissedRollovers,
       }),
     }
   )

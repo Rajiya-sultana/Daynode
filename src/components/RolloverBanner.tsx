@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, X, RotateCcw } from "lucide-react";
 import { format, subDays, isToday } from "date-fns";
 import { useTaskStore } from "@/store/taskStore";
+import { useUIStore } from "@/store/uiStore";
 
 export default function RolloverBanner() {
   const { tasks, selectedDate, rolloverTasks } = useTaskStore();
-  const [dismissed, setDismissed] = useState<string[]>([]);
+  const { dismissedRollovers: dismissed, dismissRollover } = useUIStore();
   const [rolled, setRolled]       = useState(false);
 
   // Only show on today
@@ -75,7 +76,7 @@ export default function RolloverBanner() {
               Roll over
             </button>
             <button
-              onClick={() => setDismissed((d) => [...d, bannerKey])}
+              onClick={() => dismissRollover(bannerKey)}
               className="p-1 rounded hover:bg-pending/20 text-pending/60 hover:text-pending transition-colors"
               title="Dismiss"
             >
