@@ -221,16 +221,6 @@ const RAW_HABITS: RawHabit[] = [
     endDate: "2026-12-31",
   },
   {
-    id: "plan-habit-reel",
-    title: "Post 1 Instagram reel (Shopify tip / fix)",
-    description: "Mon, Wed, Fri — reels recorded on Saturday",
-    tags: ["content"],
-    recurrence: "custom",
-    days: [1, 3, 5], // Mon, Wed, Fri
-    startDate: "2026-08-24",
-    endDate: "2026-12-31",
-  },
-  {
     id: "plan-habit-tracker",
     title: "Update tracker — messages sent, replies, calls, money in",
     description: "Daily end-of-session log",
@@ -293,6 +283,11 @@ export function buildSeedRecurring(): RecurringTask[] {
     endDate: h.endDate,
   }));
 }
+
+// Retired habits — the habit and all its instances are purged on every seedPlan run
+export const REMOVED_HABITS: { id: string; title: string }[] = [
+  { id: "plan-habit-reel", title: "Post 1 Instagram reel (Shopify tip / fix)" },
+];
 
 // Task title renames — applied on every seedPlan run to fix existing stored tasks
 export const TASK_RENAMES: { from: string; to: string }[] = [

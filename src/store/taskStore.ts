@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
-import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES } from "@/lib/seedPlan";
+import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES, REMOVED_HABITS } from "@/lib/seedPlan";
 import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
 
 export type TaskStatus =
@@ -445,18 +445,28 @@ export const useTaskStore = create<TaskState>()(
       seedPlan: () => {
         const newRecurring = buildSeedRecurring();
 
+        // Purge retired habits and every instance of them (matched by id or title)
+        const removedIds = new Set(REMOVED_HABITS.map((h) => h.id));
+        const removedTitles = new Set(REMOVED_HABITS.map((h) => h.title));
+        const keptRecurring = get().recurringTasks.filter(
+          (rt) => !removedIds.has(rt.id) && !removedTitles.has(rt.title)
+        );
+        const keptTasks = get().tasks.filter(
+          (t) => !(t.recurringId && removedIds.has(t.recurringId)) && !removedTitles.has(t.title)
+        );
+
         // Always update existing plan habits with latest data (picks up startDate)
         const planHabitIds = new Set(newRecurring.map((r) => r.id));
-        const updatedRecurring = get().recurringTasks.map((rt) => {
+        const updatedRecurring = keptRecurring.map((rt) => {
           if (!planHabitIds.has(rt.id)) return rt;
           const updated = newRecurring.find((r) => r.id === rt.id);
           return updated ? { ...rt, ...updated } : rt;
         });
-        const existingRtIds = new Set(get().recurringTasks.map((r) => r.id));
+        const existingRtIds = new Set(keptRecurring.map((r) => r.id));
         const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id));
 
         // Remove habit instances generated outside their startDate–endDate window
-        const cleanedTasks = get().tasks.filter((t) => {
+        const cleanedTasks = keptTasks.filter((t) => {
           if (!t.recurringId || !planHabitIds.has(t.recurringId)) return true;
           const habit = newRecurring.find((r) => r.id === t.recurringId);
           if (habit?.startDate && t.date < habit.startDate) return false;
