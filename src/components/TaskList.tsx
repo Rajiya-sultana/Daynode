@@ -10,10 +10,13 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight } from "lucide-react";
 import { useTaskStore, type Task, STATUS_META } from "@/store/taskStore";
 import TaskCard from "./TaskCard";
 import EmptyState from "./EmptyState";
+import { useUIStore } from "@/store/uiStore";
+import { CATEGORIES, getCategory, type Category } from "@/lib/categories";
 
 const GROUPS = [
   { key: "blocked",     statuses: ["blocked"] },
@@ -32,13 +35,11 @@ interface TaskListProps {
   onEdit?: (task: Task) => void;
 }
 
-export default function TaskList({ onEdit }: TaskListProps) {
-  const { tasks, selectedDate, reorderTasks } = useTaskStore();
+type SectionId = Category | "other";
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-  );
+export default function TaskList({ onEdit }: TaskListProps) {
+  const { tasks, selectedDate } = useTaskStore();
+  const { openCategory, setOpenCategory } = useUIStore();
 
   const dateTasks = tasks
     .filter((t: Task) => t.date === selectedDate)
@@ -47,25 +48,101 @@ export default function TaskList({ onEdit }: TaskListProps) {
       return pw !== 0 ? pw : a.order - b.order;
     });
 
+  if (dateTasks.length === 0) return <EmptyState />;
+
+  const uncategorised = dateTasks.filter((t) => getCategory(t) === null);
+  const sections: { id: SectionId; name: string; color: string; tasks: Task[] }[] = [
+    ...CATEGORIES.map((c) => ({ ...c, tasks: dateTasks.filter((t) => getCategory(t) === c.id) })),
+    ...(uncategorised.length > 0
+      ? [{ id: "other" as const, name: "Uncategorised", color: "#B8AFA2", tasks: uncategorised }]
+      : []),
+  ];
+
+  return (
+    <div className="flex flex-col divide-y divide-ruled/60 border-b border-ruled/60">
+      {sections.map((section) => {
+        const isOpen = openCategory === section.id;
+        const done = section.tasks.filter((t) => t.status === "completed").length;
+        return (
+          <div key={section.id}>
+            {/* Category header — click to open; opening one closes the others */}
+            <button
+              type="button"
+              onClick={() => setOpenCategory(isOpen ? null : section.id)}
+              aria-expanded={isOpen}
+              className="w-full flex items-center text-left hover:bg-binding/20 transition-colors"
+              style={{ minHeight: "44px" }}
+            >
+              <div className="w-10 flex-shrink-0 flex items-center justify-center">
+                <ChevronRight
+                  className="w-3.5 h-3.5 text-ink-faint transition-transform duration-200"
+                  style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                />
+              </div>
+              <div className="w-px self-stretch bg-margin/30 flex-shrink-0" />
+              <div className="flex-1 flex items-center gap-2.5 px-4 py-2 min-w-0">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: section.color }} />
+                <span className="text-sm font-semibold text-ink">{section.name}</span>
+                <span className="font-mono text-[10px] text-ink-faint">
+                  {section.tasks.length === 0 ? "no tasks" : `${done}/${section.tasks.length} done`}
+                </span>
+              </div>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  {section.tasks.length === 0 ? (
+                    <p className="font-mono text-[10px] text-ink-faint pl-14 pb-3">
+                      Nothing here today. Add a task with this category to see it here.
+                    </p>
+                  ) : (
+                    <SectionTasks tasks={section.tasks} allDateTasks={dateTasks} onEdit={onEdit} />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SectionTasks({ tasks, allDateTasks, onEdit }: { tasks: Task[]; allDateTasks: Task[]; onEdit?: (task: Task) => void }) {
+  const { selectedDate, reorderTasks } = useTaskStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = dateTasks.findIndex((t) => t.id === active.id);
-    const newIndex = dateTasks.findIndex((t) => t.id === over.id);
-    const reordered = arrayMove(dateTasks, oldIndex, newIndex);
-    reorderTasks(selectedDate, reordered.map((t) => t.id));
+    const oldIndex = tasks.findIndex((t) => t.id === active.id);
+    const newIndex = tasks.findIndex((t) => t.id === over.id);
+    const reordered = arrayMove(tasks, oldIndex, newIndex);
+    // Reorder within this section; tasks in other sections keep their relative order
+    const inSection = new Set(tasks.map((t) => t.id));
+    const rest = allDateTasks.filter((t) => !inSection.has(t.id));
+    reorderTasks(selectedDate, [...reordered, ...rest].map((t) => t.id));
   }
-
-  if (dateTasks.length === 0) return <EmptyState />;
 
   let lineCounter = 1;
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={dateTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col divide-y divide-ruled/40">
           {GROUPS.map(({ key, statuses }) => {
-            const group = dateTasks.filter((t) => (statuses as readonly string[]).includes(t.status));
+            const group = tasks.filter((t) => (statuses as readonly string[]).includes(t.status));
             if (group.length === 0) return null;
 
             const isBlocked   = key === "blocked";

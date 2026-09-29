@@ -7,6 +7,8 @@ import { useTaskStore, type Tag, type Task } from "@/store/taskStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { parseNL } from "@/lib/nlParser";
 import type { LTMatch } from "@/lib/languageTool";
+import { useUIStore } from "@/store/uiStore";
+import { CATEGORIES, getCategory, type Category } from "@/lib/categories";
 
 interface AddTaskModalProps {
   open: boolean;
@@ -17,6 +19,7 @@ interface AddTaskModalProps {
 
 export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTaskModalProps) {
   const { addTask, updateTask, tags, selectedDate } = useTaskStore();
+  const openCategory = useUIStore((s) => s.openCategory);
   const isEditing = !!task;
 
   const [title, setTitle]               = useState("");
@@ -25,6 +28,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | "">("");
   const [priority, setPriority] = useState<"urgent" | "high" | undefined>(undefined);
+  const [category, setCategory] = useState<Category | undefined>(undefined);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const { matches, checking, applyFix, applyAllFixes, ignoreWord } = useGrammarCheck(title);
@@ -59,8 +63,11 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
       setSelectedTags(task.tags);
       setEstimatedMinutes(task.estimatedMinutes ?? "");
       setPriority(task.priority);
+      setCategory(getCategory(task) ?? undefined);
     } else {
       reset();
+      // New tasks land in whichever category is open
+      setCategory(openCategory && openCategory !== "other" ? openCategory : undefined);
     }
     setTimeout(() => titleRef.current?.focus(), 80);
   }, [open, task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -83,6 +90,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
         tags: selectedTags,
         estimatedMinutes: estMins,
         priority,
+        category,
       });
     } else {
       addTask({
@@ -93,6 +101,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
         tags: selectedTags,
         estimatedMinutes: estMins,
         priority,
+        category,
       });
     }
     reset();
@@ -105,7 +114,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
   }
 
   function reset() {
-    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]); setEstimatedMinutes(""); setPriority(undefined);
+    setTitle(""); setDescription(""); setDeadline(""); setSelectedTags([]); setEstimatedMinutes(""); setPriority(undefined); setCategory(undefined);
   }
 
   function toggleTag(id: string) {
@@ -313,6 +322,34 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </div>
+
+              {/* ── Category ── */}
+              <div>
+                <label className="font-mono text-[10px] text-ink-faint uppercase tracking-widest block mb-2">
+                  category
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {CATEGORIES.map((c) => {
+                    const active = category === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCategory(active ? undefined : c.id)}
+                        className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg border-2 transition-all"
+                        style={{
+                          color: active ? c.color : "var(--color-ink-muted)",
+                          backgroundColor: active ? c.color + "20" : "transparent",
+                          borderColor: active ? c.color : "var(--color-ruled)",
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* ── Description ── */}

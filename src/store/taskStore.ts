@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
 import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES, REMOVED_HABITS } from "@/lib/seedPlan";
+import type { Category } from "@/lib/categories";
 import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
 
 export type TaskStatus =
@@ -45,6 +46,7 @@ export interface Task {
   startedAt?: string;
   actualMinutes?: number;
   priority?: "urgent" | "high";
+  category?: Category;
 }
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "custom";
@@ -60,6 +62,7 @@ export interface RecurringTask {
   createdAt: string;
   startDate?: string; // yyyy-MM-dd; don't generate before this date
   endDate?: string;   // yyyy-MM-dd; don't generate after this date
+  category?: Category;
 }
 
 export interface Tag {
@@ -366,6 +369,7 @@ export const useTaskStore = create<TaskState>()(
             createdAt: new Date().toISOString(),
             completedAt: null,
             recurringId: rt.id,
+            category: rt.category,
           });
         }
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Repeat, Plus, Trash2, Tag as TagIcon, ToggleLeft, ToggleRight } from "lucide-react";
 import { useTaskStore, type RecurringTask, type RecurrenceType, type Tag } from "@/store/taskStore";
+import { CATEGORIES, type Category } from "@/lib/categories";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -25,6 +26,7 @@ const EMPTY_FORM = {
   recurrence: "daily" as RecurrenceType,
   days: [] as number[],
   tags: [] as string[],
+  category: undefined as Category | undefined,
 };
 
 export default function RecurringModal({ open, onClose }: RecurringModalProps) {
@@ -42,6 +44,7 @@ export default function RecurringModal({ open, onClose }: RecurringModalProps) {
       recurrence: form.recurrence,
       days: form.days,
       tags: form.tags,
+      category: form.category,
       active: true,
     });
     resetForm();
@@ -194,6 +197,32 @@ export default function RecurringModal({ open, onClose }: RecurringModalProps) {
                         </div>
                       </div>
                     )}
+
+                    {/* Category */}
+                    <div>
+                      <p className="font-mono text-[10px] text-ink-faint uppercase tracking-widest mb-2">Category</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {CATEGORIES.map((c) => {
+                          const active = form.category === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setForm((f) => ({ ...f, category: active ? undefined : c.id }))}
+                              className="flex items-center gap-1.5 font-mono text-[10px] font-semibold px-3 py-1.5 rounded-lg border-2 transition-all"
+                              style={{
+                                color: active ? c.color : "var(--color-ink-muted)",
+                                backgroundColor: active ? c.color + "20" : "transparent",
+                                borderColor: active ? c.color : "var(--color-ruled)",
+                              }}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     {/* Tags */}
                     {tags.length > 0 && (
