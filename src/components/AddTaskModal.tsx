@@ -8,7 +8,7 @@ import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { parseNL } from "@/lib/nlParser";
 import type { LTMatch } from "@/lib/languageTool";
 import { useUIStore } from "@/store/uiStore";
-import { CATEGORIES, getCategory, type Category } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
 
 interface AddTaskModalProps {
   open: boolean;
@@ -18,7 +18,7 @@ interface AddTaskModalProps {
 }
 
 export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTaskModalProps) {
-  const { addTask, updateTask, tags, selectedDate } = useTaskStore();
+  const { addTask, updateTask, tags, selectedDate, categories } = useTaskStore();
   const openCategory = useUIStore((s) => s.openCategory);
   const isEditing = !!task;
 
@@ -28,7 +28,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | "">("");
   const [priority, setPriority] = useState<"urgent" | "high" | undefined>(undefined);
-  const [category, setCategory] = useState<Category | undefined>(undefined);
+  const [category, setCategory] = useState<string | undefined>(undefined);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const { matches, checking, applyFix, applyAllFixes, ignoreWord } = useGrammarCheck(title);
@@ -63,7 +63,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
       setSelectedTags(task.tags);
       setEstimatedMinutes(task.estimatedMinutes ?? "");
       setPriority(task.priority);
-      setCategory(getCategory(task) ?? undefined);
+      setCategory(getCategory(task, categories) ?? undefined);
     } else {
       reset();
       // New tasks land in whichever category is open
@@ -330,7 +330,7 @@ export default function AddTaskModal({ open, onClose, task, inboxMode }: AddTask
                   category
                 </label>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {CATEGORIES.map((c) => {
+                  {categories.map((c) => {
                     const active = category === c.id;
                     return (
                       <button

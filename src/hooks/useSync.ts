@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTaskStore } from "@/store/taskStore";
 import { supabase, supabaseEnabled, getDeviceId } from "@/lib/supabase";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "disabled";
 
@@ -27,6 +28,8 @@ export function useSync() {
         longestStreak:     s.longestStreak,
         planSeeded:        s.planSeeded,
         uiUxSprintSeeded:  s.uiUxSprintSeeded,
+        categories:          s.categories,
+        removedRecurringIds: s.removedRecurringIds,
       };
       const { error } = await supabase
         .from("bloom_sync")
@@ -68,6 +71,8 @@ export function useSync() {
             longestStreak:  (remote.longestStreak ?? 0) as number,
             planSeeded:        (remote.planSeeded ?? false) as boolean,
             uiUxSprintSeeded:  (remote.uiUxSprintSeeded ?? false) as boolean,
+            categories:          (remote.categories ?? DEFAULT_CATEGORIES) as never,
+            removedRecurringIds: (remote.removedRecurringIds ?? []) as never,
           });
           useTaskStore.getState().seedPlan();
           useTaskStore.getState().seedUiUxSprint();
@@ -95,7 +100,7 @@ export function useSync() {
     timer.current = setTimeout(push, 3000);
     return () => clearTimeout(timer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.tasks, store.journals, store.covers, store.recurringTasks]);
+  }, [store.tasks, store.journals, store.covers, store.recurringTasks, store.categories]);
 
   // Auto-push every 30s
   useEffect(() => {

@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Category } from "@/lib/categories";
 
 export interface Profile {
   name: string;
@@ -31,8 +30,8 @@ interface UIState {
   setFocusMinimized: (v: boolean) => void;
 
   // ── Category accordion (session-only) — one open at a time, "other" = uncategorised
-  openCategory:    Category | "other" | null;
-  setOpenCategory: (c: Category | "other" | null) => void;
+  openCategory:    string | null; // CategoryDef id, or "other"
+  setOpenCategory: (c: string | null) => void;
 }
 
 export const useUIStore = create<UIState>()(

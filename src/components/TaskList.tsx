@@ -11,12 +11,13 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useTaskStore, type Task, STATUS_META } from "@/store/taskStore";
 import TaskCard from "./TaskCard";
 import EmptyState from "./EmptyState";
 import { useUIStore } from "@/store/uiStore";
-import { CATEGORIES, getCategory, type Category } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
 
 const GROUPS = [
   { key: "blocked",     statuses: ["blocked"] },
@@ -35,11 +36,11 @@ interface TaskListProps {
   onEdit?: (task: Task) => void;
 }
 
-type SectionId = Category | "other";
-
 export default function TaskList({ onEdit }: TaskListProps) {
-  const { tasks, selectedDate } = useTaskStore();
+  const { tasks, selectedDate, categories, recurringTasks, addCategory, deleteCategory } = useTaskStore();
   const { openCategory, setOpenCategory } = useUIStore();
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
 
   const dateTasks = tasks
     .filter((t: Task) => t.date === selectedDate)
@@ -50,13 +51,32 @@ export default function TaskList({ onEdit }: TaskListProps) {
 
   if (dateTasks.length === 0) return <EmptyState />;
 
-  const uncategorised = dateTasks.filter((t) => getCategory(t) === null);
-  const sections: { id: SectionId; name: string; color: string; tasks: Task[] }[] = [
-    ...CATEGORIES.map((c) => ({ ...c, tasks: dateTasks.filter((t) => getCategory(t) === c.id) })),
+  const uncategorised = dateTasks.filter((t) => getCategory(t, categories) === null);
+  const sections: { id: string; name: string; color: string; tasks: Task[] }[] = [
+    ...categories.map((c) => ({ ...c, tasks: dateTasks.filter((t) => getCategory(t, categories) === c.id) })),
     ...(uncategorised.length > 0
-      ? [{ id: "other" as const, name: "Uncategorised", color: "#B8AFA2", tasks: uncategorised }]
+      ? [{ id: "other", name: "Uncategorised", color: "#B8AFA2", tasks: uncategorised }]
       : []),
   ];
+
+  function handleDelete(id: string, name: string) {
+    const taskCount  = tasks.filter((t) => getCategory(t, categories) === id).length;
+    const habitCount = recurringTasks.filter((rt) => getCategory(rt, categories) === id).length;
+    const ok = window.confirm(
+      `Delete "${name}"?\n\nThis also permanently deletes ${taskCount} task${taskCount === 1 ? "" : "s"} ` +
+      `across all dates${habitCount ? ` and ${habitCount} recurring habit${habitCount === 1 ? "" : "s"}` : ""}. ` +
+      `This can't be undone.`
+    );
+    if (!ok) return;
+    if (openCategory === id) setOpenCategory(null);
+    deleteCategory(id);
+  }
+
+  function handleAdd() {
+    if (newName.trim()) addCategory(newName);
+    setNewName("");
+    setAdding(false);
+  }
 
   return (
     <div className="flex flex-col divide-y divide-ruled/60 border-b border-ruled/60">
@@ -66,11 +86,12 @@ export default function TaskList({ onEdit }: TaskListProps) {
         return (
           <div key={section.id}>
             {/* Category header — click to open; opening one closes the others */}
+            <div className="group flex items-center hover:bg-binding/20 transition-colors">
             <button
               type="button"
               onClick={() => setOpenCategory(isOpen ? null : section.id)}
               aria-expanded={isOpen}
-              className="w-full flex items-center text-left hover:bg-binding/20 transition-colors"
+              className="flex-1 flex items-center text-left min-w-0"
               style={{ minHeight: "44px" }}
             >
               <div className="w-10 flex-shrink-0 flex items-center justify-center">
@@ -88,6 +109,17 @@ export default function TaskList({ onEdit }: TaskListProps) {
                 </span>
               </div>
             </button>
+            {section.id !== "other" && (
+              <button
+                type="button"
+                onClick={() => handleDelete(section.id, section.name)}
+                title={`Delete ${section.name}`}
+                className="mr-5 p-1.5 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 text-ink-faint hover:text-urgent hover:bg-urgent/10 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            </div>
 
             <AnimatePresence initial={false}>
               {isOpen && (
@@ -111,6 +143,35 @@ export default function TaskList({ onEdit }: TaskListProps) {
           </div>
         );
       })}
+
+      {/* Add a category */}
+      <div className="flex items-center" style={{ minHeight: "40px" }}>
+        <div className="w-10 flex-shrink-0" />
+        <div className="w-px self-stretch bg-margin/30 flex-shrink-0" />
+        {adding ? (
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+              if (e.key === "Escape") { setNewName(""); setAdding(false); }
+            }}
+            onBlur={handleAdd}
+            placeholder="Category name, then Enter"
+            className="flex-1 mx-4 bg-transparent border-b border-ruled focus:border-accent outline-none text-sm text-ink placeholder:text-ink-faint py-1 transition-colors"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] text-ink-faint hover:text-accent transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            add category
+          </button>
+        )}
+      </div>
     </div>
   );
 }

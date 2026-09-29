@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
 import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES, REMOVED_HABITS } from "@/lib/seedPlan";
-import type { Category } from "@/lib/categories";
+import { DEFAULT_CATEGORIES, CATEGORY_COLORS, getCategory, type CategoryDef } from "@/lib/categories";
 import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
 
 export type TaskStatus =
@@ -46,7 +46,7 @@ export interface Task {
   startedAt?: string;
   actualMinutes?: number;
   priority?: "urgent" | "high";
-  category?: Category;
+  category?: string; // CategoryDef id
 }
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "custom";
@@ -62,7 +62,7 @@ export interface RecurringTask {
   createdAt: string;
   startDate?: string; // yyyy-MM-dd; don't generate before this date
   endDate?: string;   // yyyy-MM-dd; don't generate after this date
-  category?: Category;
+  category?: string;  // CategoryDef id
 }
 
 export interface Tag {
@@ -109,6 +109,8 @@ interface TaskState {
   visionBoard: VisionItem[];
   planSeeded: boolean;
   uiUxSprintSeeded: boolean;
+  categories: CategoryDef[];
+  removedRecurringIds: string[]; // habits deleted with their category — seedPlan must not bring them back
 
   setSelectedDate: (date: string) => void;
   addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
@@ -127,6 +129,10 @@ interface TaskState {
   // Tags
   addTag: (name: string, color: string) => Tag;
   deleteTag: (id: string) => void;
+
+  // Categories
+  addCategory: (name: string) => void;
+  deleteCategory: (id: string) => void;
 
   // Cover
   setCover: (date: string, cover: Cover | null) => void;
@@ -221,6 +227,7 @@ export const useTaskStore = create<TaskState>()(
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
       covers: {}, journals: {}, visionBoard: [], planSeeded: false, uiUxSprintSeeded: false,
+      categories: DEFAULT_CATEGORIES, removedRecurringIds: [],
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -317,6 +324,25 @@ export const useTaskStore = create<TaskState>()(
         tags: get().tags.filter((t) => t.id !== id),
         tasks: get().tasks.map((t) => ({ ...t, tags: t.tags.filter((tid) => tid !== id) })),
       }),
+
+      // ── Categories ───────────────────────────────────────────
+      addCategory: (name) => {
+        const cats = get().categories;
+        const color = CATEGORY_COLORS[cats.length % CATEGORY_COLORS.length];
+        set({ categories: [...cats, { id: nanoid(), name: name.trim(), color }] });
+      },
+
+      // Deletes the category together with every task and habit in it (all dates)
+      deleteCategory: (id) => {
+        const { categories, tasks, recurringTasks, removedRecurringIds } = get();
+        const removedHabits = recurringTasks.filter((rt) => getCategory(rt, categories) === id).map((rt) => rt.id);
+        set({
+          categories: categories.filter((c) => c.id !== id),
+          recurringTasks: recurringTasks.filter((rt) => !removedHabits.includes(rt.id)),
+          removedRecurringIds: [...new Set([...removedRecurringIds, ...removedHabits])],
+        });
+        rebuildHistory(tasks.filter((t) => getCategory(t, categories) !== id), set);
+      },
 
       // ── Recurring ────────────────────────────────────────────
       addRecurringTask: (rt) => {
@@ -452,8 +478,9 @@ export const useTaskStore = create<TaskState>()(
         // Purge retired habits and every instance of them (matched by id or title)
         const removedIds = new Set(REMOVED_HABITS.map((h) => h.id));
         const removedTitles = new Set(REMOVED_HABITS.map((h) => h.title));
+        const deletedIds = new Set(get().removedRecurringIds ?? []);
         const keptRecurring = get().recurringTasks.filter(
-          (rt) => !removedIds.has(rt.id) && !removedTitles.has(rt.title)
+          (rt) => !removedIds.has(rt.id) && !removedTitles.has(rt.title) && !deletedIds.has(rt.id)
         );
         const keptTasks = get().tasks.filter(
           (t) => !(t.recurringId && removedIds.has(t.recurringId)) && !removedTitles.has(t.title)
@@ -467,7 +494,7 @@ export const useTaskStore = create<TaskState>()(
           return updated ? { ...rt, ...updated } : rt;
         });
         const existingRtIds = new Set(keptRecurring.map((r) => r.id));
-        const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id));
+        const recurringToAdd = newRecurring.filter((r) => !existingRtIds.has(r.id) && !deletedIds.has(r.id));
 
         // Remove habit instances generated outside their startDate–endDate window
         const cleanedTasks = keptTasks.filter((t) => {

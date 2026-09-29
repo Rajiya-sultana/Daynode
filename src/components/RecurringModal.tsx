@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Repeat, Plus, Trash2, Tag as TagIcon, ToggleLeft, ToggleRight } from "lucide-react";
 import { useTaskStore, type RecurringTask, type RecurrenceType, type Tag } from "@/store/taskStore";
-import { CATEGORIES, type Category } from "@/lib/categories";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -26,11 +25,11 @@ const EMPTY_FORM = {
   recurrence: "daily" as RecurrenceType,
   days: [] as number[],
   tags: [] as string[],
-  category: undefined as Category | undefined,
+  category: undefined as string | undefined,
 };
 
 export default function RecurringModal({ open, onClose }: RecurringModalProps) {
-  const { recurringTasks, addRecurringTask, updateRecurringTask, deleteRecurringTask, tags } = useTaskStore();
+  const { recurringTasks, addRecurringTask, updateRecurringTask, deleteRecurringTask, tags, categories } = useTaskStore();
   const [form, setForm]         = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
 
@@ -199,10 +198,11 @@ export default function RecurringModal({ open, onClose }: RecurringModalProps) {
                     )}
 
                     {/* Category */}
+                    {categories.length > 0 && (
                     <div>
                       <p className="font-mono text-[10px] text-ink-faint uppercase tracking-widest mb-2">Category</p>
                       <div className="flex gap-2 flex-wrap">
-                        {CATEGORIES.map((c) => {
+                        {categories.map((c) => {
                           const active = form.category === c.id;
                           return (
                             <button
@@ -223,6 +223,7 @@ export default function RecurringModal({ open, onClose }: RecurringModalProps) {
                         })}
                       </div>
                     </div>
+                    )}
 
                     {/* Tags */}
                     {tags.length > 0 && (
