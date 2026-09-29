@@ -9,7 +9,6 @@ import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Su
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
-import { useSync } from "@/hooks/useSync";
 
 const navItems = [
   { href: "/",          icon: ListTodo,     label: "Today",    shortcut: "1" },
@@ -24,7 +23,6 @@ export default function Sidebar() {
   const inboxCount = tasks.filter((t) => t.date === "" && t.status !== "completed" && t.status !== "cancelled").length;
   const { theme, toggleTheme, profile } = useUIStore();
   const [profileOpen, setProfileOpen]     = useState(false);
-  useSync(); // keeps Supabase sync running; no status shown
   const { exportData, importData } = useTaskStore();
   const importRef = useRef<HTMLInputElement>(null);
 

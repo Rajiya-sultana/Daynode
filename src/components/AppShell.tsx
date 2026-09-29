@@ -5,10 +5,13 @@ import QuickCapture from "./QuickCapture";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import EndOfDayPrompt from "./EndOfDayPrompt";
 import FocusMode from "./FocusMode";
+import { useSync } from "@/hooks/useSync";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [quickOpen,     setQuickOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Sync lives here, not in a page, so it survives navigation and never re-pulls over unsaved edits
+  useSync();
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;

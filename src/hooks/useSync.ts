@@ -5,6 +5,15 @@ import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "disabled";
 
+// Survives reloads: set while this browser has changes Supabase hasn't received yet
+const UNSYNCED_KEY = "bloom-unsynced";
+function hasUnsynced() {
+  try { return localStorage.getItem(UNSYNCED_KEY) === "1"; } catch { return false; }
+}
+function setUnsynced(v: boolean) {
+  try { if (v) localStorage.setItem(UNSYNCED_KEY, "1"); else localStorage.removeItem(UNSYNCED_KEY); } catch { /* ignore */ }
+}
+
 export function useSync() {
   const [status, setStatus] = useState<SyncStatus>(supabaseEnabled ? "idle" : "disabled");
   const lastSync = useRef<number>(0);
@@ -17,6 +26,7 @@ export function useSync() {
     if (!supabase || !supabaseEnabled || !pulled.current) return;
     dirty.current = false;
     setStatus("syncing");
+    const pushedTasks = useTaskStore.getState().tasks;
     try {
       const deviceId = getDeviceId();
       const s = useTaskStore.getState();
@@ -40,7 +50,8 @@ export function useSync() {
 
       if (error) throw error;
       lastSync.current = Date.now();
-      dirty.current = false;
+      // Only clear the flag if nothing changed while the upload was in flight
+      if (useTaskStore.getState().tasks === pushedTasks && !dirty.current) setUnsynced(false);
       setStatus("synced");
     } catch {
       dirty.current = true;
@@ -59,6 +70,14 @@ export function useSync() {
   async function pullInner() {
     if (!supabase || !supabaseEnabled) {
       useTaskStore.getState().seedPlan();
+      return;
+    }
+    // Unsaved local changes (e.g. added just before a refresh) win — upload them instead of overwriting
+    if (hasUnsynced()) {
+      useTaskStore.getState().seedPlan();
+      useTaskStore.getState().seedUiUxSprint();
+      pulled.current = true;
+      await push();
       return;
     }
     try {
@@ -110,6 +129,7 @@ export function useSync() {
   useEffect(() => {
     if (!supabaseEnabled || !pulled.current) return;
     dirty.current = true;
+    setUnsynced(true);
     clearTimeout(timer.current);
     timer.current = setTimeout(push, 3000);
     return () => clearTimeout(timer.current);
