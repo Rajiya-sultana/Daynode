@@ -15,8 +15,8 @@ const groups = [
     items: [
       { keys: ["1"], desc: "Go to Today" },
       { keys: ["2"], desc: "Go to Calendar" },
-      { keys: ["3"], desc: "Go to Stats" },
-      { keys: ["4"], desc: "Go to Review" },
+      { keys: ["3"], desc: "Go to Inbox" },
+      { keys: ["4"], desc: "Go to Stats" },
     ],
   },
   {

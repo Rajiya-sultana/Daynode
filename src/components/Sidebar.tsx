@@ -5,11 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, ClipboardList, Download, Upload, Keyboard, Zap, Repeat, Inbox, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListTodo, CalendarDays, BarChart3, Flame, Sun, Moon, Pencil, Download, Upload, Keyboard, Zap, Inbox } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import { useUIStore } from "@/store/uiStore";
 import ProfilePanel from "./ProfilePanel";
-import RecurringModal from "./RecurringModal";
 import SyncStatusBar from "./SyncStatus";
 import { useSync } from "@/hooks/useSync";
 
@@ -18,8 +17,6 @@ const navItems = [
   { href: "/calendar",  icon: CalendarDays, label: "Calendar", shortcut: "2" },
   { href: "/inbox",     icon: Inbox,        label: "Inbox",    shortcut: "3" },
   { href: "/stats",     icon: BarChart3,    label: "Stats",    shortcut: "4" },
-  { href: "/review",    icon: ClipboardList, label: "Review",  shortcut: "5" },
-  { href: "/vision",    icon: Sparkles,      label: "Vision",  shortcut: "6" },
 ];
 
 export default function Sidebar() {
@@ -28,7 +25,6 @@ export default function Sidebar() {
   const inboxCount = tasks.filter((t) => t.date === "" && t.status !== "completed" && t.status !== "cancelled").length;
   const { theme, toggleTheme, profile } = useUIStore();
   const [profileOpen, setProfileOpen]     = useState(false);
-  const [recurringOpen, setRecurringOpen] = useState(false);
   const { status: syncStatus, push: syncNow } = useSync();
   const { exportData, importData } = useTaskStore();
   const importRef = useRef<HTMLInputElement>(null);
@@ -140,15 +136,6 @@ export default function Sidebar() {
             </Link>
           );
         })}
-
-        {/* Recurring tasks button */}
-        <button
-          onClick={() => setRecurringOpen(true)}
-          className="group flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 transition-all text-ink-muted hover:bg-binding/40 hover:text-ink w-full"
-        >
-          <Repeat className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm font-semibold flex-1 text-left">Recurring</span>
-        </button>
       </nav>
 
       {/* ── Bottom section ── */}
@@ -243,7 +230,6 @@ export default function Sidebar() {
       </div>{/* end scrollable wrapper */}
 
       <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
-      <RecurringModal open={recurringOpen} onClose={() => setRecurringOpen(false)} />
     </aside>
   );
 }
