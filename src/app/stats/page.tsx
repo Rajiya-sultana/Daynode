@@ -69,6 +69,7 @@ export default function StatsPage() {
     // Best day of week
     const dayTotals: Record<string, { total: number; done: number }> = {};
     tasks.forEach((t) => {
+      if (!t.date) return; // inbox tasks have no date
       const day = format(new Date(t.date + "T12:00:00"), "EEEE");
       if (!dayTotals[day]) dayTotals[day] = { total: 0, done: 0 };
       dayTotals[day].total++;
