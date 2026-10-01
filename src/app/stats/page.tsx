@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { format, subDays, eachDayOfInterval } from "date-fns";
-import { Target, CheckCircle2, Clock } from "lucide-react";
+import { Target, CheckCircle2 } from "lucide-react";
 import { useTaskStore } from "@/store/taskStore";
 import Sidebar from "@/components/Sidebar";
 
@@ -33,9 +33,6 @@ export default function StatsPage() {
   const stats = useMemo(() => {
     const total     = tasks.length;
     const completed = tasks.filter((t) => t.status === "completed").length;
-    const cancelled = tasks.filter((t) => t.status === "cancelled").length;
-    const blocked   = tasks.filter((t) => t.status === "blocked").length;
-    const inProg    = tasks.filter((t) => t.status === "in-progress").length;
     const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     // Last 7 days
@@ -46,7 +43,7 @@ export default function StatsPage() {
       return { date: day, label: format(day, "EEE"), total: daily.length, done, pct: daily.length > 0 ? done / daily.length : 0 };
     });
 
-    return { total, completed, cancelled, blocked, inProg, rate, last7 };
+    return { total, completed, rate, last7 };
   }, [tasks]);
 
   const maxLast7 = Math.max(...stats.last7.map((d) => d.total), 1);
@@ -108,26 +105,6 @@ export default function StatsPage() {
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-ruled" /><span className="font-mono text-[10px] text-ink-faint">Total</span></div>
               </div>
             </div>
-          {/* ── Insight cards ── */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-paper rounded-2xl p-4 border border-binding/50">
-              <Clock className="w-4 h-4 text-ink-faint mb-2" />
-              <p className="font-mono text-[10px] text-ink-faint uppercase tracking-wide mb-1">Blocked tasks</p>
-              <p className="font-mono text-2xl font-bold text-urgent">{stats.blocked}</p>
-              <p className="font-mono text-[9px] text-ink-faint mt-1">need your attention</p>
-            </div>
-            <div className="bg-paper rounded-2xl p-4 border border-binding/50">
-              <p className="font-mono text-[10px] text-ink-faint uppercase tracking-wide mb-1">In progress</p>
-              <p className="font-mono text-2xl font-bold text-pending">{stats.inProg}</p>
-              <p className="font-mono text-[9px] text-ink-faint mt-1">currently working on</p>
-            </div>
-            <div className="bg-paper rounded-2xl p-4 border border-binding/50">
-              <p className="font-mono text-[10px] text-ink-faint uppercase tracking-wide mb-1">Cancelled</p>
-              <p className="font-mono text-2xl font-bold text-ink-muted">{stats.cancelled}</p>
-              <p className="font-mono text-[9px] text-ink-faint mt-1">decided not to do</p>
-            </div>
-          </div>
-
         </div>
       </main>
     </div>
