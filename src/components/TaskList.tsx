@@ -15,9 +15,8 @@ import { useState } from "react";
 import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useTaskStore, type Task, STATUS_META } from "@/store/taskStore";
 import TaskCard from "./TaskCard";
-import EmptyState from "./EmptyState";
 import { useUIStore } from "@/store/uiStore";
-import { getCategory } from "@/lib/categories";
+import { getCategory, showsOn } from "@/lib/categories";
 
 const GROUPS = [
   { key: "blocked",     statuses: ["blocked"] },
@@ -49,11 +48,12 @@ export default function TaskList({ onEdit }: TaskListProps) {
       return pw !== 0 ? pw : a.order - b.order;
     });
 
-  if (dateTasks.length === 0) return <EmptyState />;
-
   const uncategorised = dateTasks.filter((t) => getCategory(t, categories) === null);
   const sections: { id: string; name: string; color: string; tasks: Task[] }[] = [
-    ...categories.map((c) => ({ ...c, tasks: dateTasks.filter((t) => getCategory(t, categories) === c.id) })),
+    ...categories
+      .map((c) => ({ ...c, tasks: dateTasks.filter((t) => getCategory(t, categories) === c.id) }))
+      // Only the categories scheduled for this weekday — but never hide one that has tasks today
+      .filter((c) => showsOn(c, selectedDate) || c.tasks.length > 0),
     ...(uncategorised.length > 0
       ? [{ id: "other", name: "Uncategorised", color: "#B8AFA2", tasks: uncategorised }]
       : []),
