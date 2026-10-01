@@ -43,6 +43,7 @@ export function useSync() {
         uiUxSprintSeeded:  s.uiUxSprintSeeded,
         categories:          s.categories,
         removedRecurringIds: s.removedRecurringIds,
+        freelanceSundayDone: s.freelanceSundayDone,
       };
       const { error } = await supabase
         .from("bloom_sync")
@@ -65,6 +66,13 @@ export function useSync() {
     } finally {
       pulled.current = true;
     }
+    // Upload whatever seeding / one-time fixes changed right after loading
+    if (supabaseEnabled) {
+      dirty.current = true;
+      setUnsynced(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(push, 1500);
+    }
   }
 
   async function pullInner() {
@@ -76,6 +84,7 @@ export function useSync() {
     if (hasUnsynced()) {
       useTaskStore.getState().seedPlan();
       useTaskStore.getState().seedUiUxSprint();
+      useTaskStore.getState().moveFreelanceToSunday();
       pulled.current = true;
       await push();
       return;
@@ -105,9 +114,11 @@ export function useSync() {
             uiUxSprintSeeded:  (remote.uiUxSprintSeeded ?? false) as boolean,
             categories:          (remote.categories ?? DEFAULT_CATEGORIES) as never,
             removedRecurringIds: (remote.removedRecurringIds ?? []) as never,
+            freelanceSundayDone: (remote.freelanceSundayDone ?? false) as boolean,
           });
           useTaskStore.getState().seedPlan();
           useTaskStore.getState().seedUiUxSprint();
+          useTaskStore.getState().moveFreelanceToSunday();
           return;
         }
       }
@@ -117,6 +128,7 @@ export function useSync() {
     // Nothing in Supabase — fresh start, seed the plan
     useTaskStore.getState().seedPlan();
     useTaskStore.getState().seedUiUxSprint();
+    useTaskStore.getState().moveFreelanceToSunday();
   }
 
   // Pull on mount (restores data, then seeds/updates plan habits)

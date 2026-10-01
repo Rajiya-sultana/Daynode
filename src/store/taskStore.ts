@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { PLAN_TAGS, buildSeedTasks, buildSeedRecurring, TASK_RENAMES, REMOVED_HABITS } from "@/lib/seedPlan";
 import { DEFAULT_CATEGORIES, CATEGORY_COLORS, getCategory, type CategoryDef } from "@/lib/categories";
 import { UIUX_SPRINT_TAG, UIUX_SENTINEL_DATE, UIUX_SENTINEL_TITLE, buildUiUxSprintTasks } from "@/lib/seedUiUxSprint";
@@ -111,6 +111,7 @@ interface TaskState {
   uiUxSprintSeeded: boolean;
   categories: CategoryDef[];
   removedRecurringIds: string[]; // habits deleted with their category — seedPlan must not bring them back
+  freelanceSundayDone: boolean;  // one-time move of freelance work to Sundays has run
 
   setSelectedDate: (date: string) => void;
   addTask: (task: Omit<Task, "id" | "order" | "createdAt" | "completedAt" | "status" | "subtasks"> & { date?: string }) => void;
@@ -161,6 +162,7 @@ interface TaskState {
   // Seed plan
   seedPlan: () => void;
   seedUiUxSprint: () => void;
+  moveFreelanceToSunday: () => void;
 
   getTasksForDate: (date: string) => Task[];
 }
@@ -227,7 +229,7 @@ export const useTaskStore = create<TaskState>()(
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       dailyHistory: {}, currentStreak: 0, longestStreak: 0,
       covers: {}, journals: {}, visionBoard: [], planSeeded: false, uiUxSprintSeeded: false,
-      categories: DEFAULT_CATEGORIES, removedRecurringIds: [],
+      categories: DEFAULT_CATEGORIES, removedRecurringIds: [], freelanceSundayDone: false,
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -550,6 +552,34 @@ export const useTaskStore = create<TaskState>()(
             ...computeStreaks(history),
           });
         }
+      },
+
+      // One-time: freelance work happens on Sundays only. From today on, unfinished freelance
+      // habit copies on other days are dropped and one-off freelance tasks move to that week's Sunday.
+      moveFreelanceToSunday: () => {
+        if (get().freelanceSundayDone) return;
+        const { tasks, recurringTasks, categories } = get();
+        const today = format(new Date(), "yyyy-MM-dd");
+        const isFreelance = (t: Pick<Task, "category" | "tags">) => getCategory(t, categories) === "freelance";
+        const isOpen = (t: Task) => t.status !== "completed" && t.status !== "cancelled";
+        const dow = (date: string) => new Date(date + "T12:00:00").getDay();
+        const sundayOf = (date: string) =>
+          format(addDays(new Date(date + "T12:00:00"), (7 - dow(date)) % 7), "yyyy-MM-dd");
+
+        const nextTasks = tasks
+          .filter((t) => !(t.recurringId && t.date >= today && dow(t.date) !== 0 && isFreelance(t) && isOpen(t)))
+          .map((t) =>
+            !t.recurringId && t.date && t.date >= today && dow(t.date) !== 0 && isFreelance(t) && isOpen(t)
+              ? { ...t, date: sundayOf(t.date) }
+              : t
+          );
+        set({
+          recurringTasks: recurringTasks.map((rt) =>
+            isFreelance(rt) ? { ...rt, recurrence: "custom" as const, days: [0] } : rt
+          ),
+          freelanceSundayDone: true,
+        });
+        rebuildHistory(nextTasks, set);
       },
 
       seedUiUxSprint: () => {

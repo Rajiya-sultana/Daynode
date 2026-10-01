@@ -195,8 +195,8 @@ const RAW_HABITS: RawHabit[] = [
     title: "Message 3 store owners (IG DM / email)",
     description: "19:00–19:45 · Outreach block",
     tags: ["outreach"],
-    recurrence: "weekdays",
-    days: [],
+    recurrence: "custom",
+    days: [0], // Sunday only
     startDate: "2026-08-24",
     endDate: "2026-12-31",
   },
@@ -205,8 +205,8 @@ const RAW_HABITS: RawHabit[] = [
     title: "Send 1 Upwork proposal (posted last 24 hrs)",
     description: "19:45–20:15 · Upwork block",
     tags: ["upwork"],
-    recurrence: "weekdays",
-    days: [],
+    recurrence: "custom",
+    days: [0], // Sunday only
     startDate: "2026-08-24",
     endDate: "2026-12-31",
   },
@@ -215,8 +215,8 @@ const RAW_HABITS: RawHabit[] = [
     title: "UI/UX practice 30 min — apply to a real store design",
     description: "21:15–21:45 · UI/UX block",
     tags: ["uiux"],
-    recurrence: "weekdays",
-    days: [],
+    recurrence: "custom",
+    days: [0], // Sunday only
     startDate: "2026-08-24",
     endDate: "2026-12-31",
   },
@@ -226,7 +226,7 @@ const RAW_HABITS: RawHabit[] = [
     description: "Daily end-of-session log",
     tags: ["tracking"],
     recurrence: "custom",
-    days: [1, 2, 3, 4, 5, 6], // Mon–Sat
+    days: [0], // Sunday only
     startDate: "2026-08-24",
     endDate: "2026-12-31",
   },
@@ -236,7 +236,7 @@ const RAW_HABITS: RawHabit[] = [
     description: "20:00–21:00 Saturday · Content + outreach prep",
     tags: ["content", "outreach"],
     recurrence: "custom",
-    days: [6], // Saturday only
+    days: [0], // Sunday only
     startDate: "2026-08-24",
     endDate: "2026-12-31",
   },
